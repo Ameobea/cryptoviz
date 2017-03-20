@@ -1,0 +1,16 @@
+=========
+Poloniex DOM Website Visualizer
+=========
+
+The idea of this project is to create a website that vizualizes the Poloniex order book using the public API, includes some tools that may be useful to the colorful altcoin trading community, and slap a few ads on it to maybe add a couple bucks to our monthly passive income stream.
+
+I'd also like to create a nice JS-based DOM viewer in the form of a React component that can be used with any kind of generic DOM data.  The end goal of this is to include it in Tickgrinder.
+
+==========
+ADDITIONAL FUNCTIONALITY
+==========
+
+ - I'd love to see a "whalewatch" feature where you can filter out orders that are smaller than a certain amount or, even better, add addional markers to orders that exceed a certain value.
+   - Even better, since it's impossible to really reduce the size of a position once it's been created on Polo, keep track of where the whales are and the size of their initial order
+   - Maybe even have a functionality to keep track of the sizes of individual changes in the orders so you can track which people are getting in/out of a certain price level
+
