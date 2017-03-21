@@ -1,0 +1,28 @@
+{
+  "name": "react-orderbook",
+  "version": "1.0.0",
+  "description": "A set of React components that can be used to visualize a limit orderbook",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ameobea/react-orderbook.git"
+  },
+  "keywords": [
+    "orderbook",
+    "react"
+  ],
+  "dependencies": {
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2",
+    "react-faux-dom": "3.0.1"
+  },
+  "author": "Casey Primozic <me@ameo.link>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Ameobea/react-orderbook/issues"
+  },
+  "homepage": "https://github.com/Ameobea/react-orderbook#readme"
+}
