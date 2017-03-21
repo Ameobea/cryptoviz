@@ -1,13 +1,12 @@
 import React from 'react';
-import { connect } from 'dva';
+
+import { Orderbook } from 'react-orderbook';
 
 function IndexPage() {
-  return (
-    <div />
-  );
+  return <Orderbook />;
 }
 
 IndexPage.propTypes = {
 };
 
-export default connect()(IndexPage);
+export default IndexPage;
