@@ -2,10 +2,7 @@
   "name": "react-orderbook",
   "version": "1.0.0",
   "description": "A set of React components that can be used to visualize a limit orderbook",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "main": "lib/index.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Ameobea/react-orderbook.git"
@@ -15,9 +12,27 @@
     "react"
   ],
   "dependencies": {
+    "paper": "0.10.3",
     "react": "^15.4.2",
     "react-dom": "^15.4.2",
     "react-faux-dom": "3.0.1"
+  },
+  "devDependencies": {
+    "babel-cli": "*",
+    "babel-core": "*",
+    "babel-eslint": "*",
+    "babel-plugin-transform-flow-strip-types": "*",
+    "babel-preset-es2015": "*",
+    "babel-preset-stage-3": "*",
+    "babel-register": "*",
+    "babel-plugin-transform-react-jsx": "*",
+    "flow-bin": "*",
+    "nodemon": "*"
+  },
+  "scripts": {
+    "compile": "babel --presets es2015,stage-3 -d lib/ src/",
+    "prepublish": "npm run compile",
+    "watch": "nodemon --watch src --exec 'npm run compile'"
   },
   "author": "Casey Primozic <me@ameo.link>",
   "license": "MIT",
