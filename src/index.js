@@ -4,6 +4,8 @@ import React from 'react';
 import paper from 'paper';
 const _ = require('lodash');
 
+// ***DEV***
+import { mockBook, mockInitialTimestamp } from './dev';
 import DepthChart from './DepthChart/DepthChart';
 import Orderbook from './Orderbook/Orderbook';
 
@@ -11,6 +13,8 @@ import Orderbook from './Orderbook/Orderbook';
  * The parent component for the orderbook analysis visualizations.  Contains variables that keeps track of the current state
  * of the orderbook, the history of all modifications, removals, and trades that have occured, and pass this information and
  * events to the child components.
+ *
+ * For all timestamps provided to this component, they should be formatted as unix timestamps with ms precision.
  *
  * @param bookModificationCallbackExecutor {func} - A function that will be called when the visualization is ready.  It will be
  *        provided one argument that is a function that should be called every time an order is added to the orderbook or
@@ -22,8 +26,9 @@ import Orderbook from './Orderbook/Orderbook';
  *        with one argument that is a function that should be called every time an order is filled.
  * @param canvasHeight {number} - The height of the returned canvas objects in pixels
  * @param canvasWidth {number} - The width of the returned canvas objects in pixels
- * @param initialBook: {[{price: number, volume: number, isBid: bool}]} - A snapshot of the orderbook before any updates or
+ * @param initialBook {[{price: number, volume: number, isBid: bool}]} - A snapshot of the orderbook before any updates or
  *        changes are sent to the callback functions.
+ * @param initialTimestamp {number} - The timestamp that the `initialBook` was taken at as unix timestmap ms precision
  */
 class OrderbookVisualizer extends React.Component {
   constructor(props) {
@@ -33,13 +38,30 @@ class OrderbookVisualizer extends React.Component {
     this.handleBookRemoval = this.handleBookRemoval.bind(this);
     this.handleNewTrade = this.handleNewTrade.bind(this);
 
+    // ***DEV***
+    let initialBook;
+    if(!props.initialBook) {
+      initialBook = mockBook;
+    } else {
+      initialBook = props.initialBook;
+    }
+
+    // ***DEV***
+    let initialTimestamp;
+    if(!props.initialTimestamp) {
+      initialTimestamp = mockInitialTimestamp;
+    } else {
+      initialTimestamp = props.initialTimestamp;
+    }
+
+    let prices = _.map(initialBook, 'price');
+    let values = _.map(initialBook, level => { return {volume: level.volume, isBid: level.isBid};});
     this.state = {
       // map the array of objects to a K:V object matching price:volume at that price level
-      curBook: _.zipObject( // the latest version of the order book containing all live buy/sell limit orders
-        _.map(props.initialBook, 'price'),
-        _.map(props.initialBook, level => { return {volume: level.volume, isBid: level.isBid};})
-      ),
-      latestChange: {}, // the most recent change that has occured in the orderbook.
+      curBook: _.zipObject(prices, values),// the latest version of the order book containing all live buy/sell limit orders
+      latestChange: {}, // the most recent change that has occured in the orderbook
+      initialBook: initialBook,
+      initialTimestamp: initialTimestamp,
     };
   }
 
@@ -48,9 +70,6 @@ class OrderbookVisualizer extends React.Component {
     this.props.bookModificationCallbackExecutor(this.handleBookModification);
     this.props.bookRemovalCallbackExecutor(this.handleBookRemoval);
     this.props.newTradeCallbackExecutor(this.handleNewTrade);
-
-    // initialize the PaperJS environment on the internal canvas
-    paper.setup(this.canvas);
   }
 
   shouldComponentRender(nextProps) {
@@ -76,12 +95,19 @@ class OrderbookVisualizer extends React.Component {
   render() {
     return (
       <div className='book-viz-container'>
-        <Orderbook canvasHeight={this.props.orderbookCanvasHeight} canvasWidth={this.props.orderbookCanvasWidth} />
+        <Orderbook
+          canvasHeight={this.props.orderbookCanvasHeight}
+          canvasWidth={this.props.orderbookCanvasWidth}
+          curBook={this.state.curBook}
+          initialTimestamp={this.props.initialTimestamp}
+        />
+
         <DepthChart
           canvasHeight={this.props.depthChartCanvasHeight}
           canvasWidth={this.props.depthChartCanvasWidth}
           change={this.state.latestChange}
-          initialBook={this.state.curBook}
+          initialBook={this.state.initialBook}
+          initialTimestamp={this.state.initialTimestamp}
         />
       </div>
     );
@@ -96,7 +122,8 @@ OrderbookVisualizer.propTypes = {
   initialBook: React.PropTypes.arrayOf(React.PropTypes.shape({
     price: React.PropTypes.number.isRequired,
     volume: React.PropTypes.number.isRequired
-  })).isRequired,
+  }))/*.isRequired ***DEV*** */,
+  initialTimestamp: React.PropTypes.number/*.isRequired ***DEV*** */,
   newTradeCallbackExecutor: React.PropTypes.func.isRequired,
   orderbookCanvasHeight: React.PropTypes.number,
   orderbookCanvasWidth: React.PropTypes.number

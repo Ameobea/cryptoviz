@@ -53,16 +53,16 @@ DepthChart.propTypes = {
   canvasHeight: React.PropTypes.number,
   canvasWidth: React.PropTypes.number,
   change: React.PropTypes.shape({
-    modificiation: React.PropTypes.Shape({
+    modificiation: React.PropTypes.shape({
       price: React.PropTypes.number.isRequired,
       newAmount: React.PropTypes.number.isRequired,
       isBid: React.PropTypes.bool.isRequired
     }),
-    removal: React.PropTypes.Shape({
+    removal: React.PropTypes.shape({
       price: React.PropTypes.number.isRequire,
       isBid: React.PropTypes.bool.isRequired
     }),
-    newTrade: React.PropTypes.Shape({
+    newTrade: React.PropTypes.shape({
       price: React.PropTypes.number.isRequired,
       amountTraded: React.PropTypes.number.isRequired,
       amountRemaining: React.PropTypes.number.isRequired,
