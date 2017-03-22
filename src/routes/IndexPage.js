@@ -1,9 +1,9 @@
 import React from 'react';
 
-import { Orderbook } from 'react-orderbook';
+import OrderbookVisualizer from 'react-orderbook';
 
 function IndexPage() {
-  return <Orderbook />;
+  return <OrderbookVisualizer />;
 }
 
 IndexPage.propTypes = {
