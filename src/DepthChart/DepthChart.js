@@ -5,22 +5,36 @@
 import React from 'react';
 import paper from 'paper';
 
+/**
+ * A visualization that draws a market depth visualization showing how much liquidity sits at various price levels.  For props,
+ * it takes a canvas height and width as well as an object representing the current state of the orderbook as represented by
+ * an object containing price:volume k:v pairs.
+ */
 class DepthChart extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      book: {},
-    };
-  }
-
   componentDidMount() {
-    // register the callback callers to start receiving book updates
-    this.props.bookModificationCallbackExecutor(this.handleBookModification);
-    this.props.bookRemovalCallbackExecutor(this.handleBookRemoval);
-    this.props.newTradeCallbackExecutor(this.handleNewTrade);
-
     // initialize the PaperJS environment on the internal canvas
     paper.setup(this.canvas);
+  }
+
+  componentWillReceiveProps(nextProps) {
+    // TODO: Determine what kind of change occured and use the information supplied in the `change` prop to update the current
+    //       visualization without redrawing it completely.  It should (optionally?) animate the points rather than just having
+    //       them jump instantly as well.
+    if(nextProps.change.modification) {
+      // TODO
+    } else if(nextProps.change.removal) {
+      // TODO
+    } else if(nextProps.change.newTrade) {
+      // TODO
+    }
+  }
+
+  shouldComponentUpdate(nextProps) {
+    if(this.props.canvasHeight !== nextProps.canvasHeight || this.props.canvasWidth !== nextProps.canvasWidth) {
+      return true;
+    }
+
+    return false;
   }
 
   render() {
@@ -38,13 +52,27 @@ class DepthChart extends React.Component {
 DepthChart.propTypes = {
   canvasHeight: React.PropTypes.number,
   canvasWidth: React.PropTypes.number,
+  change: React.PropTypes.shape({
+    modificiation: React.PropTypes.Shape({
+      price: React.PropTypes.number.isRequired,
+      newAmount: React.PropTypes.number.isRequired,
+      isBid: React.PropTypes.bool.isRequired
+    }),
+    removal: React.PropTypes.Shape({
+      price: React.PropTypes.number.isRequire,
+      isBid: React.PropTypes.bool.isRequired
+    }),
+    newTrade: React.PropTypes.Shape({
+      price: React.PropTypes.number.isRequired,
+      amountTraded: React.PropTypes.number.isRequired,
+      amountRemaining: React.PropTypes.number.isRequired,
+      wasBidFilled: React.PropTypes.bool.isRequired
+    })
+  }),
   initialBook: React.PropTypes.arrayOf(React.PropTypes.shape({
     price: React.PropTypes.number.isRequired,
     volume: React.PropTypes.number.isRequired
   })).isRequired,
-  bookModificationCallbackExecutor: React.PropTypes.func.isRequired,
-  bookRemovalCallbackExecutor: React.PropTypes.func.isRequired,
-  newTradeCallbackExecutor: React.PropTypes.func.isRequired,
 };
 
 DepthChart.defaultProps = {
