@@ -40,15 +40,16 @@ function getInitialPriceRange(book: Orderbook): {min: number, max: number} {
   let minPrice;
   let partialSum = 0;
   // find the price where 25% of the volume is below it and the price where 25% is above it
-  _.each(prices, price => {
+  for(let i=0; i<prices.length; i++) {
+    let price = prices[i];
     partialSum += book[price].volume;
     let percentage = partialSum / totalVolume;
-    if(percentage >= .25) {
-      minPrice = price;
-    } else if(percentage >= .75) {
+    if(percentage >= .75) {
       return {min: minPrice, max: price};
+    } else if(percentage >= .25) {
+      minPrice = price;
     }
-  });
+  }
 
   console.error('Finished looping in `getInitialPriceRange` and reached end of loop!');
 }
