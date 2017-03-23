@@ -4,12 +4,13 @@ import React from 'react';
 import paper from 'paper';
 
 import { getInitialPriceRange } from '../calc';
-import { renderInitial } from './render';
+import { renderInitial, renderUpdate } from './render';
 
 class Orderbook extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
+      // zoom settings
       timeScale: 1000 * 60 * 5, // how much time to display on the viz in ms
       minTimestamp: null,
       maxTimestamp: null,
@@ -19,7 +20,7 @@ class Orderbook extends React.Component {
       timeGranuality: 1000, // the min number of ms that can exist as a distinct unit
       // duplicated settings from props
       canvasHeight: props.canvasHeight,
-      canvasWidht: props.canvasWidth,
+      canvasWidth: props.canvasWidth,
       // visual settings
       backgroundColor: '#121212',
     };
@@ -27,7 +28,7 @@ class Orderbook extends React.Component {
 
   componentWillMount() {
     // calculate initial zoom levels given the starting orderbook
-    let {min, max} = getInitialPriceRange(this.props.curBook);
+    const {min, max} = getInitialPriceRange(this.props.curBook);
     this.setState({
       minTimestamp: this.props.initialTimestamp,
       maxTimestamp: this.props.initialTimestamp + this.state.timeScale,
@@ -39,10 +40,23 @@ class Orderbook extends React.Component {
   componentDidMount() {
     // initialize the PaperJS environment on the internal canvas
     this.paperscope = new paper.PaperScope();
-    paper.setup(this.paperscope);
+    this.paperscope.setup(this.canvas);
 
     // draw the initial version of the orderbook along with the axis and other markers
-    renderInitial(this.state);
+    renderInitial(this.state, this.paperscope);
+  }
+
+  componentWillReceiveProps(nextProps) {
+    if(nextProps.)
+  }
+
+  shouldComponentUpdate(nextProps) {
+    // only re-render if we need to resize
+    if(nextProps.canvasHeight !== this.props.canvasHeight || nextProps.canvasWidth !== this.props.canvasWidth) {
+      return true;
+    }
+
+    return false;
   }
 
   render() {
@@ -61,6 +75,7 @@ Orderbook.propTypes = {
   canvasHeight: React.PropTypes.number,
   canvasWidth: React.PropTypes.number,
   curBook: React.PropTypes.object.isRequired,
+  curTimestamp: React.PropTypes.number.isRequired,
   initialTimestamp: React.PropTypes.number.isRequired,
 };
 

@@ -3,7 +3,7 @@
 // @flow
 
 import React from 'react';
-import paper from 'paper';
+// import paper from 'paper';
 
 /**
  * A visualization that draws a market depth visualization showing how much liquidity sits at various price levels.  For props,
@@ -13,7 +13,7 @@ import paper from 'paper';
 class DepthChart extends React.Component {
   componentDidMount() {
     // initialize the PaperJS environment on the internal canvas
-    paper.setup(this.canvas);
+    // paper.setup(this.canvas);
   }
 
   componentWillReceiveProps(nextProps) {

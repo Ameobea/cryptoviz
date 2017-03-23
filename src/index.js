@@ -1,7 +1,7 @@
 //! A set of React components used to render interactive orderbook visualizations for limit orderbook data
 
 import React from 'react';
-import paper from 'paper';
+
 const _ = require('lodash');
 
 // ***DEV***
@@ -54,22 +54,23 @@ class OrderbookVisualizer extends React.Component {
       initialTimestamp = props.initialTimestamp;
     }
 
-    let prices = _.map(initialBook, 'price');
-    let values = _.map(initialBook, level => { return {volume: level.volume, isBid: level.isBid};});
+    const prices = _.map(initialBook, 'price');
+    const values = _.map(initialBook, level => { return {volume: level.volume, isBid: level.isBid}; });
     this.state = {
       // map the array of objects to a K:V object matching price:volume at that price level
-      curBook: _.zipObject(prices, values),// the latest version of the order book containing all live buy/sell limit orders
+      curBook: _.zipObject(prices, values), // the latest version of the order book containing all live buy/sell limit orders
       latestChange: {}, // the most recent change that has occured in the orderbook
       initialBook: initialBook,
       initialTimestamp: initialTimestamp,
+      curTimestamp: initialTimestamp,
     };
   }
 
   componentDidMount() {
     // register the callback callers to start receiving book updates
-    this.props.bookModificationCallbackExecutor(this.handleBookModification);
-    this.props.bookRemovalCallbackExecutor(this.handleBookRemoval);
-    this.props.newTradeCallbackExecutor(this.handleNewTrade);
+    // this.props.bookModificationCallbackExecutor(this.handleBookModification);
+    // this.props.bookRemovalCallbackExecutor(this.handleBookRemoval);
+    // this.props.newTradeCallbackExecutor(this.handleNewTrade);
   }
 
   shouldComponentRender(nextProps) {
@@ -78,8 +79,12 @@ class OrderbookVisualizer extends React.Component {
   }
 
   handleBookModification(modification: {timestamp: number, price: number, newAmount: number, isBid: boolean}) {
-    this.setState({latestChange: {modification: modification}});
-    // TODO
+    const curBook = this.state.curBook;
+    curBook[modification.price] = {volume: modification.newAmount, isBid: modification.isBid};
+    this.setState({
+      curBook: curBook,
+      latestChange: {modification: modification},
+    });
   }
 
   handleBookRemoval(removal: {timestamp: number, price: number, isBid: boolean}) {
@@ -98,7 +103,9 @@ class OrderbookVisualizer extends React.Component {
         <Orderbook
           canvasHeight={this.props.orderbookCanvasHeight}
           canvasWidth={this.props.orderbookCanvasWidth}
+          change={this.state.latestChange}
           curBook={this.state.curBook}
+          curTimestamp={this.state.curTimestamp}
           initialTimestamp={this.props.initialTimestamp}
         />
 
@@ -130,8 +137,8 @@ OrderbookVisualizer.propTypes = {
 };
 
 OrderbookVisualizer.defaultProps = {
-  orderbookCanvasHeight: 1200,
-  orderbookCanvasWidth: 1800,
+  orderbookCanvasHeight: 600,
+  orderbookCanvasWidth: 1200,
   depthChartCanvasHeight: 600,
   depthChartCanvasWidth: 900,
 };
