@@ -13,8 +13,8 @@ function getPixelPosition(
   minPrice: number, maxPrice: number, minTime: number, maxTime: number,
   canvasHeight: number, canvasWidth: number, price: number, timestamp: number
 ): {x: number, y: number} {
-  let x = ((timestamp - minTime) / (maxTime - minTime)) * canvasWidth;
-  let y = ((price - minPrice) / (maxTime - minTime)) * canvasHeight;
+  const x = ((timestamp - minTime) / (maxTime - minTime)) * canvasWidth;
+  const y = ((price - minPrice) / (maxTime - minTime)) * canvasHeight;
   return {x: x, y: y};
 }
 
@@ -31,7 +31,7 @@ function getPricesFromBook(book: Orderbook): Array<number> {
  * @return {{min: number, max: number}} - The optimal locations of the min and max visible prices
  */
 function getInitialPriceRange(book: Orderbook): {min: number, max: number} {
-  let prices = getPricesFromBook(book);
+  const prices = getPricesFromBook(book);
 
   // calculate the total amount of volume listed in the book
   let totalVolume = 0;
@@ -41,9 +41,9 @@ function getInitialPriceRange(book: Orderbook): {min: number, max: number} {
   let partialSum = 0;
   // find the price where 25% of the volume is below it and the price where 25% is above it
   for(let i=0; i<prices.length; i++) {
-    let price = prices[i];
+    const price = prices[i];
     partialSum += book[price].volume;
-    let percentage = partialSum / totalVolume;
+    const percentage = partialSum / totalVolume;
     if(percentage >= .75) {
       return {min: minPrice, max: price};
     } else if(percentage >= .25) {
@@ -59,7 +59,7 @@ function getInitialPriceRange(book: Orderbook): {min: number, max: number} {
  * @return {{bestBid: number, bestAsk: number}} - The current top-of-book bid and ask
  */
 function getTopOfBook(book: Orderbook): {bestBid: number, bestAsk: number} {
-  let prices = getPricesFromBook(book);
+  const prices = getPricesFromBook(book);
 
   for(let i=0; i<prices.length; i++) {
     if(!book[prices[i]].isBid) {
@@ -70,4 +70,13 @@ function getTopOfBook(book: Orderbook): {bestBid: number, bestAsk: number} {
   console.error('Finished looping book in `getTopOfBook` and reached end of loop!');
 }
 
-export { getPixelPosition, getPricesFromBook, getInitialPriceRange, getTopOfBook };
+/**
+ * Given an image of the initial orderbook and the range of visible prices, finds the maximum amount of volume
+ * located in one band to be used for shading the other bands.
+ */
+function getMaxVisibleBandVolume(book: Orderbook, minVisible: number, maxVisible: number): number {
+  const visiblePrices = _.filter(getPricesFromBook(book), price => price >= minVisible && price <= maxVisible);
+  return _.maxBy(visiblePrices, price => book[price].volume).volume;
+}
+
+export { getPixelPosition, getPricesFromBook, getInitialPriceRange, getTopOfBook, getMaxVisibleBandVolume };

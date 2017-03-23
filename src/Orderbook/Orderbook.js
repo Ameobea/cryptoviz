@@ -2,39 +2,44 @@
 
 import React from 'react';
 import paper from 'paper';
+const _ = require('lodash');
 
-import { getInitialPriceRange } from '../calc';
+import { ChangeShape } from '../util';
+import { getInitialPriceRange, getMaxVisibleBandVolume } from '../calc';
 import { renderInitial, renderUpdate } from './render';
 
 class Orderbook extends React.Component {
   constructor(props) {
     super(props);
-    this.state = {
+    this.vizState = {
       // zoom settings
-      timeScale: 1000 * 60 * 5, // how much time to display on the viz in ms
+      timeScale: 1000 * 60 * 2, // how much time to display on the viz in ms
       minTimestamp: null,
       maxTimestamp: null,
       minPrice: null,
       maxPrice: null,
       priceGranularity: 28, // the number of destinct price levels to mark on the visualization
       timeGranuality: 1000, // the min number of ms that can exist as a distinct unit
+      maxVisibleVolume: null,
       // duplicated settings from props
       canvasHeight: props.canvasHeight,
       canvasWidth: props.canvasWidth,
       // visual settings
       backgroundColor: '#121212',
+      // rendering state
+      activeBands: {}, // { [key: number]: BandDef }
+      oldBands: {}, // { [key: number]: Array<BandDef> }
     };
   }
 
   componentWillMount() {
     // calculate initial zoom levels given the starting orderbook
     const {min, max} = getInitialPriceRange(this.props.curBook);
-    this.setState({
-      minTimestamp: this.props.initialTimestamp,
-      maxTimestamp: this.props.initialTimestamp + this.state.timeScale,
-      minPrice: min,
-      maxPrice: max
-    });
+    this.vizState.minTimestamp = this.props.initialTimestamp;
+    this.vizState.maxTimestamp = this.props.initialTimestamp + this.vizState.timeScale;
+    this.vizState.minPrice = min;
+    this.vizState.maxPrice = max;
+    this.vizState.maxVisibleVolume = getMaxVisibleBandVolume(this.props.curBook, min, max);
   }
 
   componentDidMount() {
@@ -43,11 +48,14 @@ class Orderbook extends React.Component {
     this.paperscope.setup(this.canvas);
 
     // draw the initial version of the orderbook along with the axis and other markers
-    renderInitial(this.state, this.paperscope);
+    renderInitial(this.vizState, this.paperscope);
   }
 
   componentWillReceiveProps(nextProps) {
-    if(nextProps.)
+    if(!_.isEqual(nextProps.change, this.props.change)) {
+      // if we've got a new update, render it
+      renderUpdate(this.vizState, nextProps.change, nextProps.curTimestamp, this.paperscope);
+    }
   }
 
   shouldComponentUpdate(nextProps) {
@@ -74,6 +82,7 @@ class Orderbook extends React.Component {
 Orderbook.propTypes = {
   canvasHeight: React.PropTypes.number,
   canvasWidth: React.PropTypes.number,
+  change: React.PropTypes.shape(ChangeShape).isRequired,
   curBook: React.PropTypes.object.isRequired,
   curTimestamp: React.PropTypes.number.isRequired,
   initialTimestamp: React.PropTypes.number.isRequired,

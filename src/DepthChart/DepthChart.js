@@ -5,6 +5,8 @@
 import React from 'react';
 // import paper from 'paper';
 
+import { ChangeShape } from '../util';
+
 /**
  * A visualization that draws a market depth visualization showing how much liquidity sits at various price levels.  For props,
  * it takes a canvas height and width as well as an object representing the current state of the orderbook as represented by
@@ -52,23 +54,7 @@ class DepthChart extends React.Component {
 DepthChart.propTypes = {
   canvasHeight: React.PropTypes.number,
   canvasWidth: React.PropTypes.number,
-  change: React.PropTypes.shape({
-    modificiation: React.PropTypes.shape({
-      price: React.PropTypes.number.isRequired,
-      newAmount: React.PropTypes.number.isRequired,
-      isBid: React.PropTypes.bool.isRequired
-    }),
-    removal: React.PropTypes.shape({
-      price: React.PropTypes.number.isRequire,
-      isBid: React.PropTypes.bool.isRequired
-    }),
-    newTrade: React.PropTypes.shape({
-      price: React.PropTypes.number.isRequired,
-      amountTraded: React.PropTypes.number.isRequired,
-      amountRemaining: React.PropTypes.number.isRequired,
-      wasBidFilled: React.PropTypes.bool.isRequired
-    })
-  }),
+  change: React.PropTypes.shape(ChangeShape),
   initialBook: React.PropTypes.arrayOf(React.PropTypes.shape({
     price: React.PropTypes.number.isRequired,
     volume: React.PropTypes.number.isRequired

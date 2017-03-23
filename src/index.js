@@ -56,7 +56,7 @@ class OrderbookVisualizer extends React.Component {
 
     const prices = _.map(initialBook, 'price');
     const values = _.map(initialBook, level => { return {volume: level.volume, isBid: level.isBid}; });
-    this.state = {
+    this.bookState = {
       // map the array of objects to a K:V object matching price:volume at that price level
       curBook: _.zipObject(prices, values), // the latest version of the order book containing all live buy/sell limit orders
       latestChange: {}, // the most recent change that has occured in the orderbook
@@ -79,21 +79,19 @@ class OrderbookVisualizer extends React.Component {
   }
 
   handleBookModification(modification: {timestamp: number, price: number, newAmount: number, isBid: boolean}) {
-    const curBook = this.state.curBook;
+    const curBook = this.bookState.curBook;
     curBook[modification.price] = {volume: modification.newAmount, isBid: modification.isBid};
-    this.setState({
-      curBook: curBook,
-      latestChange: {modification: modification},
-    });
+    this.bookState.curBook = curBook;
+    this.bookState.latestChange = {modification: modification};
   }
 
   handleBookRemoval(removal: {timestamp: number, price: number, isBid: boolean}) {
-    this.setState({latestChange: {removal: removal}});
+    this.bookState.latestChange = {removal: removal};
     // TODO
   }
 
   handleNewTrade(trade: {timestamp: number, price: number, amountRemaining: number, wasBidFilled: boolean}) {
-    this.setState({latestChange: {newTrade: trade}});
+    this.bookState.latestChange = {newTrade: trade};
     // TODO
   }
 
@@ -103,18 +101,18 @@ class OrderbookVisualizer extends React.Component {
         <Orderbook
           canvasHeight={this.props.orderbookCanvasHeight}
           canvasWidth={this.props.orderbookCanvasWidth}
-          change={this.state.latestChange}
-          curBook={this.state.curBook}
-          curTimestamp={this.state.curTimestamp}
+          change={this.bookState.latestChange}
+          curBook={this.bookState.curBook}
+          curTimestamp={this.bookState.curTimestamp}
           initialTimestamp={this.props.initialTimestamp}
         />
 
         <DepthChart
           canvasHeight={this.props.depthChartCanvasHeight}
           canvasWidth={this.props.depthChartCanvasWidth}
-          change={this.state.latestChange}
-          initialBook={this.state.initialBook}
-          initialTimestamp={this.state.initialTimestamp}
+          change={this.bookState.latestChange}
+          initialBook={this.bookState.initialBook}
+          initialTimestamp={this.bookState.initialTimestamp}
         />
       </div>
     );
