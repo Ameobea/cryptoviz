@@ -26,7 +26,7 @@ class IndexPage extends React.Component {
     // trigger a dummy update every second
     setInterval(() => {
       const update: {timestamp: number, price: number, newAmount: number, isBid: boolean} = {
-        timestamp: this.state.curTimestamp + 1,
+        timestamp: this.state.curTimestamp + 1000,
         price: 1.0,
         newAmount: this.state.curPrice * 1.05,
         isBid: true,
