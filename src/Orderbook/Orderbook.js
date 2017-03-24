@@ -5,7 +5,7 @@ import paper from 'paper';
 const _ = require('lodash');
 
 import { ChangeShape } from '../util';
-import { getInitialPriceRange, getMaxVisibleBandVolume } from '../calc';
+import { getInitialPriceRange, getMaxVisibleBandVolume, getInitialBandValues } from '../calc';
 import { renderInitial, renderUpdate } from './render';
 
 class Orderbook extends React.Component {
@@ -20,14 +20,15 @@ class Orderbook extends React.Component {
       maxPrice: null,
       priceGranularity: 28, // the number of destinct price levels to mark on the visualization
       timeGranuality: 1000, // the min number of ms that can exist as a distinct unit
-      maxVisibleVolume: null,
+      maxVisibleBandVolume: null,
       // duplicated settings from props
       canvasHeight: props.canvasHeight,
       canvasWidth: props.canvasWidth,
       // visual settings
       backgroundColor: '#121212',
       // rendering state
-      activeBands: {}, // { [key: number]: BandDef }
+      activeBands: null, // Array<BandDef>
+      activePrices: {}, // { [key: number]: BandDef }
       oldBands: {}, // { [key: number]: Array<BandDef> }
     };
   }
@@ -39,7 +40,12 @@ class Orderbook extends React.Component {
     this.vizState.maxTimestamp = this.props.initialTimestamp + this.vizState.timeScale;
     this.vizState.minPrice = min;
     this.vizState.maxPrice = max;
-    this.vizState.maxVisibleVolume = getMaxVisibleBandVolume(this.props.curBook, min, max);
+    this.vizState.maxVisibleBandVolume = getMaxVisibleBandVolume(this.props.curBook, min, max);
+
+    // create the initial band values using the initial book image
+    this.vizState.activeBands = getInitialBandValues(
+      this.props.initialTimestamp, this.props.curBook, min, max, this.vizState.priceGranularity
+    );
   }
 
   componentDidMount() {

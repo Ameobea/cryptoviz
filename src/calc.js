@@ -11,11 +11,22 @@ type Orderbook = { [key: number]: {price: number, isBid: boolean} };
  */
 function getPixelPosition(
   minPrice: number, maxPrice: number, minTime: number, maxTime: number,
-  canvasHeight: number, canvasWidth: number, price: number, timestamp: number
+  canvasHeight: number, canvasWidth: number, timestamp: number, price: number
 ): {x: number, y: number} {
   const x = ((timestamp - minTime) / (maxTime - minTime)) * canvasWidth;
   const y = ((price - minPrice) / (maxTime - minTime)) * canvasHeight;
   return {x: x, y: y};
+}
+
+/**
+ * Wrapper function around `getPixelPosition` that gets settings from `vizState`
+ */
+function gpp(
+  {minPrice, maxPrice, minTime, maxTime, canvasHeight, canvasWidth}
+    : {minPrice: number, maxPrice: number, minTime: number, maxTime: number, canvasHeight: number, canvasWidth: number},
+  timestamp: number, price: number
+) {
+  return getPixelPosition(minPrice, maxPrice, minTime, maxTime, canvasHeight, canvasWidth, timestamp, price);
 }
 
 /**
@@ -55,6 +66,40 @@ function getInitialPriceRange(book: Orderbook): {min: number, max: number} {
 }
 
 /**
+ * Given an image of the initial orderbook, returns an array of `BandDef`s that contain the initial volumes for each band
+ */
+function getInitialBandValues(
+  initialTimestamp: number, initialBook: Orderbook, minVisiblePrice: number, maxVisiblePrice: number, priceGranularity: number
+) {
+  const prices = getPricesFromBook(initialBook);
+
+  const bandPriceSpan = (maxVisiblePrice - minVisiblePrice) / priceGranularity; // price range between the bottom and top of each band
+  const visiblePriceRange = maxVisiblePrice - minVisiblePrice;
+  const bands = _.fill(new Array(priceGranularity), {
+    startTimestamp: initialTimestamp,
+    endTimestamp: initialTimestamp,
+    volume: 0,
+  });
+  let curBandIndex = 0;
+
+  _.each(prices, price => {
+    if((price >= minVisiblePrice) && (price <= maxVisiblePrice)) {
+      if(price > ((curBandIndex + 1) * bandPriceSpan)) {
+        if(price === maxVisiblePrice) {
+          curBandIndex = priceGranularity - 1;
+        } else {
+          curBandIndex = Math.floor(((price - minVisiblePrice) / visiblePriceRange) * priceGranularity);
+        }
+      }
+
+      bands[curBandIndex].volume += initialBook[price].volume;
+    }
+  });
+
+  return bands;
+}
+
+/**
  * Given an image of an orderbook as a HashMap, calculates the current best offer on both the bid and ask side.
  * @return {{bestBid: number, bestAsk: number}} - The current top-of-book bid and ask
  */
@@ -74,9 +119,30 @@ function getTopOfBook(book: Orderbook): {bestBid: number, bestAsk: number} {
  * Given an image of the initial orderbook and the range of visible prices, finds the maximum amount of volume
  * located in one band to be used for shading the other bands.
  */
-function getMaxVisibleBandVolume(book: Orderbook, minVisible: number, maxVisible: number): number {
+function getMaxVisibleBandVolume(book: Orderbook, minVisible: number, maxVisible: number, priceGranularity: number): number {
   const visiblePrices = _.filter(getPricesFromBook(book), price => price >= minVisible && price <= maxVisible);
-  return _.maxBy(visiblePrices, price => book[price].volume).volume;
+
+  const bandPriceSpan = (maxVisible - minVisible) / priceGranularity; // price range between the bottom and top of each band
+  let curBandIndex = 0;
+  let curBandVolume = 0;
+  let maxBandVolume = 0;
+  _.each(visiblePrices, price => {
+    // if this price is outside of the current band, change band index, reset counts, and determine new band index
+    if(price > ((curBandIndex + 1) * bandPriceSpan)) {
+      if(curBandVolume > maxBandVolume) {
+        maxBandVolume = curBandVolume;
+      }
+      curBandVolume = 0;
+      curBandIndex = Math.floor((price - minVisible) / bandPriceSpan);
+    }
+
+    curBandVolume += book[price].volume;
+  });
+
+  return maxBandVolume;
 }
 
-export { getPixelPosition, getPricesFromBook, getInitialPriceRange, getTopOfBook, getMaxVisibleBandVolume };
+export {
+  getPixelPosition, gpp, getPricesFromBook, getInitialPriceRange, getInitialBandValues,
+  getTopOfBook, getMaxVisibleBandVolume
+};
