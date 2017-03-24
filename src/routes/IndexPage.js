@@ -1,6 +1,7 @@
 // @flow
 
 import React from 'react';
+const _ = require('lodash');
 
 import OrderbookVisualizer from 'react-orderbook';
 
@@ -10,9 +11,9 @@ class IndexPage extends React.Component {
 
     this.bookModificationExecutor = this.bookModificationExecutor.bind(this);
     this.state = {
-      curTimestamp: 1000,
+      curTimestamp: 0,
       // ***DEV***
-      curPrice: 18.2342
+      curAmount: 12.23,
     };
   }
 
@@ -25,16 +26,19 @@ class IndexPage extends React.Component {
   bookModificationExecutor(callback) {
     // trigger a dummy update every second
     setInterval(() => {
-      const update: {timestamp: number, price: number, newAmount: number, isBid: boolean} = {
-        timestamp: this.state.curTimestamp + 1000,
-        price: 1.0,
-        newAmount: this.state.curPrice * 1.05,
+      const timestampDiff = _.random(1, 2500);
+      const priceDiff = _.random(-.5, .5);
+      const modification: {timestamp: number, price: number, newAmount: number, isBid: boolean} = {
+        timestamp: this.state.curTimestamp + timestampDiff,
+        price: 2.0,
+        newAmount: this.state.curAmount + priceDiff,
         isBid: true,
       };
 
-      callback(update);
-      this.setState({curTimestamp: this.state.curTimestamp + 1, curPrice: this.state.curPrice * 1.05});
-    });
+      console.log(`Calling back with timestamp ${this.state.curTimestamp}`);
+      callback({modification: modification, timestamp: this.state.curTimestamp + timestampDiff});
+      this.setState({curTimestamp: this.state.curTimestamp + timestampDiff, curAmount: this.state.curAmount + priceDiff});
+    }, 250);
   }
 
   render() {
