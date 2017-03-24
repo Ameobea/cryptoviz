@@ -28,7 +28,7 @@ class Orderbook extends React.Component {
       backgroundColor: '#121212',
       // rendering state
       activeBands: null, // Array<BandDef>
-      activePrices: {}, // { [key: number]: BandDef }
+      activePrices: null, // { [key: number]: BandDef }
       oldBands: {}, // { [key: number]: Array<BandDef> }
     };
   }
@@ -40,12 +40,30 @@ class Orderbook extends React.Component {
     this.vizState.maxTimestamp = this.props.initialTimestamp + this.vizState.timeScale;
     this.vizState.minPrice = min;
     this.vizState.maxPrice = max;
-    this.vizState.maxVisibleBandVolume = getMaxVisibleBandVolume(this.props.curBook, min, max);
+    this.vizState.maxVisibleBandVolume = getMaxVisibleBandVolume(this.props.curBook, min, max, this.vizState.priceGranularity);
+
+    // populate the active prices from the initial book image
+    const activePrices = {};
+    _.each(this.props.curBook, (val: {volume: number, isBid: boolean}, price: number) => {
+      activePrices[price] = {
+        startTimestamp: this.props.initialTimestamp,
+        endTimestamp: this.props.initialTimestamp,
+        volume: val.volume,
+        isBid: val.isBid,
+      };
+    });
+    this.vizState.activePrices = activePrices;
 
     // create the initial band values using the initial book image
     this.vizState.activeBands = getInitialBandValues(
       this.props.initialTimestamp, this.props.curBook, min, max, this.vizState.priceGranularity
     );
+
+    // set up an array of empty arrays for `oldBands`
+    this.vizState.oldBands = new Array(this.vizState.priceGranularity);
+    for(var i=0; i<this.vizState.oldBands.length; i++) {
+      this.vizState.oldBands[i] = [];
+    }
   }
 
   componentDidMount() {
@@ -60,7 +78,8 @@ class Orderbook extends React.Component {
   componentWillReceiveProps(nextProps) {
     if(!_.isEqual(nextProps.change, this.props.change)) {
       // if we've got a new update, render it
-      renderUpdate(this.vizState, nextProps.change, nextProps.curTimestamp, this.paperscope);
+      console.log('Rendering update...');
+      renderUpdate(this.vizState, nextProps.change, this.paperscope);
     }
   }
 
@@ -90,7 +109,6 @@ Orderbook.propTypes = {
   canvasWidth: React.PropTypes.number,
   change: React.PropTypes.shape(ChangeShape).isRequired,
   curBook: React.PropTypes.object.isRequired,
-  curTimestamp: React.PropTypes.number.isRequired,
   initialTimestamp: React.PropTypes.number.isRequired,
 };
 

@@ -17,7 +17,8 @@ const ChangeShape = {
     amountTraded: React.PropTypes.number.isRequired,
     amountRemaining: React.PropTypes.number.isRequired,
     wasBidFilled: React.PropTypes.bool.isRequired
-  })
+  }),
+  timestamp: React.PropTypes.number.isRequired
 };
 
 export { ChangeShape };

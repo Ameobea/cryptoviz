@@ -68,7 +68,7 @@ class OrderbookVisualizer extends React.Component {
 
   componentDidMount() {
     // register the callback callers to start receiving book updates
-    // this.props.bookModificationCallbackExecutor(this.handleBookModification);
+    this.props.bookModificationCallbackExecutor(this.handleBookModification);
     // this.props.bookRemovalCallbackExecutor(this.handleBookRemoval);
     // this.props.newTradeCallbackExecutor(this.handleNewTrade);
   }
@@ -78,11 +78,11 @@ class OrderbookVisualizer extends React.Component {
     return false;
   }
 
-  handleBookModification(modification: {timestamp: number, price: number, newAmount: number, isBid: boolean}) {
+  handleBookModification(change: {modification: {price: number, newAmount: number, isBid: boolean}, timestamp: number}) {
     const curBook = this.bookState.curBook;
-    curBook[modification.price] = {volume: modification.newAmount, isBid: modification.isBid};
+    curBook[change.modification.price] = {volume: change.modification.newAmount, isBid: change.modification.isBid};
     this.bookState.curBook = curBook;
-    this.bookState.latestChange = {modification: modification};
+    this.bookState.latestChange = change;
   }
 
   handleBookRemoval(removal: {timestamp: number, price: number, isBid: boolean}) {
@@ -103,7 +103,6 @@ class OrderbookVisualizer extends React.Component {
           canvasWidth={this.props.orderbookCanvasWidth}
           change={this.bookState.latestChange}
           curBook={this.bookState.curBook}
-          curTimestamp={this.bookState.curTimestamp}
           initialTimestamp={this.props.initialTimestamp}
         />
 
