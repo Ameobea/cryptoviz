@@ -27,15 +27,15 @@ class IndexPage extends React.Component {
     // trigger a dummy update every second
     setInterval(() => {
       const timestampDiff = _.random(1, 2500);
-      const priceDiff = _.random(-.5, .5);
+      const priceDiff = _.random(0, 12);
       const modification: {timestamp: number, price: number, newAmount: number, isBid: boolean} = {
         timestamp: this.state.curTimestamp + timestampDiff,
-        price: 2.0,
-        newAmount: this.state.curAmount + priceDiff,
+        price: _.random(2000, 2300)/1000,
+        newAmount: priceDiff,
         isBid: true,
       };
 
-      console.log(`Calling back with timestamp ${this.state.curTimestamp}`);
+      console.log(`Calling back with timestamp ${this.state.curTimestamp} and price ${modification.price}`);
       callback({modification: modification, timestamp: this.state.curTimestamp + timestampDiff});
       this.setState({curTimestamp: this.state.curTimestamp + timestampDiff, curAmount: this.state.curAmount + priceDiff});
     }, 250);
