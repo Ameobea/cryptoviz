@@ -55,9 +55,10 @@ function renderUpdate(
 
     const activeBand = vizState.activeBands[curPriceIndex];
     const activePrice = vizState.activePrices[price];
-    const volumeDiff = change.modification.newAmount - activePrice.volume;
+    let volumeDiff;
     if(activePrice) {
       const totalTime = timestamp - activeBand.startTimestamp;
+      volumeDiff = change.modification.newAmount - activePrice.volume;
       if(totalTime <= vizState.timeGranularity) {
         // if the band is still smaller than the minimum granularity, average the prices together and re-render it
         const prevTime = activeBand.endTimestamp - activeBand.startTimestamp;
@@ -77,6 +78,8 @@ function renderUpdate(
         activeBand.endTimestamp = timestamp;
         drawBand(vizState, activeBand, (vizState.priceGranularity - 1) - curPriceIndex, scope);
       }
+    } else {
+      volumeDiff = change.modification.newAmount;
     }
 
     vizState.activePrices[price] = {
@@ -147,7 +150,7 @@ function drawBand(vizState, band: {startTimestamp: number, endTimestamp: number}
 function getBandColor(band, maxVisibleVolume: number, scope/* TODO: include viz color settings */) {
   // TODO
   const intensity = band.volume / maxVisibleVolume;
-  const color = {hue: 360*intensity, saturation: .85, brightness: 1};
+  const color = {hue: 50 - (50 * intensity), saturation: .8, lightness: .42};
   return color;
 }
 
