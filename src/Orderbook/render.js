@@ -2,6 +2,7 @@
 // @flow
 
 const _ = require('lodash');
+const chroma = require('chroma-js');
 
 import { gpp, getPricesFromBook } from '../calc';
 
@@ -12,14 +13,11 @@ type BandDef = {startTimestamp: number, endTimestamp: number, volume: number, is
  * Given the component's vizState and a reference to the canvas, renders the initial view of the orderbook given
  * the visualization.
  */
-function renderInitial(vizState: {curBook: Orderbook, canvasHeight: number, canvasWidth: number}, scope: any) {
-  scope.activate();
+function renderInitial(vizState: {curBook: Orderbook, canvasHeight: number, canvasWidth: number}, canvas: any) {
   // fill in the background
-  const bg = new scope.Path.Rectangle(new scope.Point(0, 0), new scope.Point(vizState.canvasWidth, vizState.canvasHeight));
-  bg.fillColor = vizState.backgroundColor;
-
-  // render the drawings to the view
-  scope.view.draw();
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = vizState.backgroundColor;
+  ctx.fillRect(0, 0, vizState.canvasWidth, vizState.canvasHeight);
 }
 
 /**
@@ -35,16 +33,18 @@ function renderUpdate(
     priceGranularity: number,
     timeGranularity: number,
     timeScale: number
-  }, change, scope
+  }, change, canvas
 ) {
   const timestamp = change.timestamp;
   if(change.modification) {
     const price = change.modification.price;
     // price range between the bottom and top of each band
     const bandPriceSpan = (vizState.maxPrice - vizState.minPrice) / vizState.priceGranularity;
+
+    // determine the index of the band in which this price update lies
     let curPriceIndex;
     if(price === vizState.maxPrice) {
-      curPriceIndex = 27;
+      curPriceIndex = vizState.priceGranularity - 1;
     } else {
       curPriceIndex = Math.floor((price - vizState.minPrice) / bandPriceSpan);
       // if the update is not visible, no need to re-render so exit early
@@ -54,42 +54,44 @@ function renderUpdate(
     }
 
     const activeBand = vizState.activeBands[curPriceIndex];
-    const activePrice = vizState.activePrices[price];
+
+    // determine the change in volume level for the band
     let volumeDiff;
-    if(activePrice) {
-      const totalTime = timestamp - activeBand.startTimestamp;
-      volumeDiff = change.modification.newAmount - activePrice.volume;
-      if(totalTime <= vizState.timeGranularity) {
-        // if the band is still smaller than the minimum granularity, average the prices together and re-render it
-        const prevTime = activeBand.endTimestamp - activeBand.startTimestamp;
-        const timeSince = timestamp - activeBand.endTimestamp;
-        const avgVolume = ((prevTime / totalTime) * activeBand.volume) + ((timeSince / totalTime) * change.modification.newAmount);
-        drawOrderNotification(volumeDiff, timestamp, vizState.maxVisibleBandVolume);
-        activePrice.endTimestamp = timestamp;
-        activePrice.volume = avgVolume;
-        activeBand.volume += volumeDiff;
-        // TODO: See if this is a performance issue for very rapid modifications and if so, only re-render this band or
-        //       don't render anything at all.
-        return drawBands(vizState.maxVisibleBandVolume, vizState.priceGranularity, scope);
-      } else {
-        // if the modification is after the minimum granularity, create a new band and move the old band to `oldBands`.
-        vizState.oldBands[curPriceIndex].push(_.cloneDeep(activeBand));
-        // draw the old band
-        activeBand.endTimestamp = timestamp;
-        drawBand(vizState, activeBand, (vizState.priceGranularity - 1) - curPriceIndex, scope);
-      }
+    if(vizState.activePrices[price]) {
+      volumeDiff = change.modification.newAmount - vizState.activePrices[price].volume;
     } else {
       volumeDiff = change.modification.newAmount;
     }
 
     vizState.activePrices[price] = {
-      startTimestamp: timestamp,
-      endTimestamp: timestamp,
       volume: change.modification.newAmount,
       isBid: change.modification.isBid,
     };
-    activeBand.startTimestamp = timestamp;
+
+    const totalTime = timestamp - activeBand.startTimestamp;
+    if(totalTime <= vizState.timeGranularity) {
+      // if the band is still smaller than the minimum granularity, average the prices together and re-render it
+      const prevTime = activeBand.endTimestamp - activeBand.startTimestamp;
+      const timeSince = timestamp - activeBand.endTimestamp;
+      const prevBandVolume = ((prevTime / totalTime) * activeBand.volume);
+      const newBandVolume = ((timeSince / totalTime) * (activeBand.volume + volumeDiff));
+      volumeDiff = (prevBandVolume + newBandVolume) / 2;
+      drawOrderNotification(volumeDiff, timestamp, vizState.maxVisibleBandVolume);
+      // TODO: See if this is a performance issue for very rapid modifications and if so, only re-render this band or
+      //       don't render anything at all.
+      return drawBands(vizState.maxVisibleBandVolume, vizState.priceGranularity, canvas);
+    } else {
+      // draw the old band
+      drawBand(vizState, activeBand, (vizState.priceGranularity - 1) - curPriceIndex, canvas.getContext('2d'));
+
+      // somce the modification is after the minimum granularity, create a new band and move the old band to `oldBands`.
+      vizState.oldBands[curPriceIndex].push(_.cloneDeep(activeBand));
+      activeBand.startTimestamp = timestamp;
+    }
+
+    // update the volume level and end timestamp of the band to reflect this modification
     activeBand.volume += volumeDiff;
+    activeBand.endTimestamp = timestamp;
   } else if(change.removal) {
     // TODO
   } else if(change.newTrade) {
@@ -99,25 +101,26 @@ function renderUpdate(
   // TODO: Handle the viz hitting the right side of the canvas
 
   // update the visualization and re-draw all active bands.
-  drawBands(vizState, timestamp, scope);
+  drawBands(vizState, timestamp, canvas);
 }
 
 /**
  * Draws all active bands on the visualization.
  */
-function drawBands(vizState, curTimestamp, scope) {
-  const {activeBands, maxVisibleBandVolume, canvasHeight, timeScale, priceGranularity} = vizState;
+function drawBands(vizState, curTimestamp, canvas) {
+  const {activeBands, priceGranularity} = vizState;
   const realDefs = _.map(
     _.filter(Object.keys(activeBands).sort(),
     price => activeBands[price] !== undefined), price => activeBands[price]
   );
 
   // draw all the active bands and add a small bit of extra time at the right side so new bands are immediately visible
+  const ctx = canvas.getContext('2d');
   _.each(realDefs, (band: BandDef, i: number) => {
     band.endTimestamp = curTimestamp;
     if(band.volume !== 0) {
       // render the band, subtracting the index from the total number of bands because the coordinates are reversed on the canvas
-      drawBand(vizState, band, (priceGranularity - 1) - i, scope);
+      drawBand(vizState, band, (priceGranularity - 1) - i, ctx);
     }
   });
 }
@@ -126,32 +129,27 @@ function drawBands(vizState, curTimestamp, scope) {
  * Draws a volume band on the visualization with the specified dimensions.  It calculates the correct shading value for the band
  * by comparing its volume to the volume of other visible bands in the visualization.
  */
-function drawBand(vizState, band: {startTimestamp: number, endTimestamp: number}, index: number, scope) {
+function drawBand(vizState, band: {startTimestamp: number, endTimestamp: number}, index: number, ctx) {
   const bandPriceSpan = ((vizState.maxPrice - vizState.minPrice) / vizState.priceGranularity);
   const bottomPrice = (index * bandPriceSpan) + vizState.minPrice;
   const topPrice = bottomPrice + bandPriceSpan;
   const topLeftCoords = gpp(vizState, band.startTimestamp, bottomPrice);
-  const bottomRightCoords = gpp(vizState, band.endTimestamp + (.015 * vizState.canvasWidth), topPrice);
+  const bottomRightCoords = gpp(vizState, band.endTimestamp, topPrice);
 
-  // set the scope to active, render the rectangular path, and draw it to the canvas
-  scope.activate();
-  const bandPath = new scope.Path.Rectangle(
-    new scope.Point(topLeftCoords.x, topLeftCoords.y),
-    new scope.Point(bottomRightCoords.x, bottomRightCoords.y)
-  );
-  bandPath.fillColor = getBandColor(band, vizState.maxVisibleBandVolume, scope);
-  scope.view.draw();
+  ctx.fillStyle = getBandColor(band, vizState.maxVisibleBandVolume);
+  ctx.fillRect(topLeftCoords.x, topLeftCoords.y, bottomRightCoords.x - topLeftCoords.x, bottomRightCoords.y - topLeftCoords.y);
 }
 
 /**
  * Given a band's density, the maximum visible density on the visualization, and the visualization's style settings,
  * determines the background color of a volume band and returns it.
  */
-function getBandColor(band, maxVisibleVolume: number, scope/* TODO: include viz color settings */) {
+function getBandColor(band, maxVisibleVolume: number/* TODO: include viz color settings */) {
   // TODO
-  const intensity = band.volume / maxVisibleVolume;
-  const color = {hue: 50 - (50 * intensity), saturation: .8, lightness: .42};
-  return color;
+  // const colorScheme = ['#141414', 'F39'];
+  const colorScheme = ['#141414', '#7cbeff'];
+  const scale = chroma.scale(colorScheme).mode('lch').domain([0, maxVisibleVolume]);
+  return scale(band.volume).hex();
 }
 
 /**

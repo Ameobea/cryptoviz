@@ -69,6 +69,7 @@ class OrderbookVisualizer extends React.Component {
   componentDidMount() {
     // register the callback callers to start receiving book updates
     this.props.bookModificationCallbackExecutor(this.handleBookModification);
+    // TODO
     // this.props.bookRemovalCallbackExecutor(this.handleBookRemoval);
     // this.props.newTradeCallbackExecutor(this.handleNewTrade);
   }
