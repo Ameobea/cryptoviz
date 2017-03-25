@@ -133,7 +133,6 @@ function getMaxVisibleBandVolume(
   let curBandIndex = 0;
   let curBandVolume = 0;
   let maxBandVolume = 0;
-  console.log('sigh');
   _.each(visiblePrices, price => {
     // if this price is outside of the current band, change band index, reset counts, and determine new band index
     if(price > ((curBandIndex + 1) * bandPriceSpan)) {

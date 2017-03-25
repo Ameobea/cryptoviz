@@ -135,7 +135,7 @@ OrderbookVisualizer.propTypes = {
 };
 
 OrderbookVisualizer.defaultProps = {
-  orderbookCanvasHeight: 600,
+  orderbookCanvasHeight: 500,
   orderbookCanvasWidth: 1200,
   depthChartCanvasHeight: 600,
   depthChartCanvasWidth: 900,

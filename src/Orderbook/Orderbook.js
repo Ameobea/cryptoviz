@@ -72,7 +72,6 @@ class Orderbook extends React.Component {
   componentWillReceiveProps(nextProps) {
     if(!_.isEqual(nextProps.change, this.props.change)) {
       // if we've got a new update, render it
-      console.log('Rendering update...');
       renderUpdate(this.vizState, nextProps.change, this.canvas);
     }
   }
