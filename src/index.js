@@ -56,7 +56,7 @@ class OrderbookVisualizer extends React.Component {
 
     const prices = _.map(initialBook, 'price');
     const values = _.map(initialBook, level => { return {volume: level.volume, isBid: level.isBid}; });
-    this.bookState = {
+    this.state = {
       // map the array of objects to a K:V object matching price:volume at that price level
       curBook: _.zipObject(prices, values), // the latest version of the order book containing all live buy/sell limit orders
       latestChange: {}, // the most recent change that has occured in the orderbook
@@ -69,9 +69,8 @@ class OrderbookVisualizer extends React.Component {
   componentDidMount() {
     // register the callback callers to start receiving book updates
     this.props.bookModificationCallbackExecutor(this.handleBookModification);
-    // TODO
-    // this.props.bookRemovalCallbackExecutor(this.handleBookRemoval);
-    // this.props.newTradeCallbackExecutor(this.handleNewTrade);
+    this.props.bookRemovalCallbackExecutor(this.handleBookRemoval);
+    this.props.newTradeCallbackExecutor(this.handleNewTrade);
   }
 
   shouldComponentRender(nextProps) {
@@ -80,19 +79,20 @@ class OrderbookVisualizer extends React.Component {
   }
 
   handleBookModification(change: {modification: {price: number, newAmount: number, isBid: boolean}, timestamp: number}) {
-    const curBook = this.bookState.curBook;
-    curBook[change.modification.price] = {volume: change.modification.newAmount, isBid: change.modification.isBid};
-    this.bookState.curBook = curBook;
-    this.bookState.latestChange = change;
+    const curBook = this.state.curBook;
+    // curBook[change.modification.price] = {volume: change.modification.newAmount, isBid: change.modification.isBid};
+    // this.state.curBook = curBook;
+    // console.log(change);
+    this.setState({latestChange: change});
   }
 
-  handleBookRemoval(removal: {timestamp: number, price: number, isBid: boolean}) {
-    this.bookState.latestChange = {removal: removal};
+  handleBookRemoval(change: {removal: {price: number, isBid: boolean}, timestamp: number}) {
+    this.setState({latestChange: change});
     // TODO
   }
 
-  handleNewTrade(trade: {timestamp: number, price: number, amountRemaining: number, wasBidFilled: boolean}) {
-    this.bookState.latestChange = {newTrade: trade};
+  handleNewTrade(change: { newTrade: {price: number, amountRemaining: number, wasBidFilled: boolean}, timestamp: number}) {
+    this.setState({latestChange: change});
     // TODO
   }
 
@@ -102,17 +102,19 @@ class OrderbookVisualizer extends React.Component {
         <Orderbook
           canvasHeight={this.props.orderbookCanvasHeight}
           canvasWidth={this.props.orderbookCanvasWidth}
-          change={this.bookState.latestChange}
-          curBook={this.bookState.curBook}
+          change={this.state.latestChange}
+          curBook={this.state.curBook}
           initialTimestamp={this.props.initialTimestamp}
+          minPrice={this.props.minPrice}
+          maxPrice={this.props.maxPrice}
         />
 
         <DepthChart
           canvasHeight={this.props.depthChartCanvasHeight}
           canvasWidth={this.props.depthChartCanvasWidth}
-          change={this.bookState.latestChange}
-          initialBook={this.bookState.initialBook}
-          initialTimestamp={this.bookState.initialTimestamp}
+          change={this.state.latestChange}
+          initialBook={this.state.initialBook}
+          initialTimestamp={this.state.initialTimestamp}
         />
       </div>
     );

@@ -3,7 +3,7 @@
 
 const _ = require('lodash');
 
-type Orderbook = { [key: number]: {price: number, isBid: boolean} };
+type Orderbook = { [key: number]: {volume: number, isBid: boolean} };
 
 /**
  * Given informatoin about the size and zoom of the visualization, calculates the X and Y positions of a certain
@@ -33,7 +33,7 @@ function gpp(
  * Given a book in `Orderbook` format, returns a sorted list of prices from it.
  */
 function getPricesFromBook(book: Orderbook): Array<number> {
-  return _.map(Object.keys(book).sort(), parseFloat);
+  return _.map(Object.keys(book), parseFloat).sort((a, b) => a-b);
 }
 
 /**
@@ -45,19 +45,19 @@ function getInitialPriceRange(book: Orderbook): {min: number, max: number} {
   const prices = getPricesFromBook(book);
 
   // calculate the total amount of volume listed in the book
-  let totalVolume = 0;
-  _.each(prices, price => {totalVolume += book[price].volume;});
+  let totalVolume = _.sumBy(prices, price => book[price].volume * price);
+  // _.each(prices, price => {totalVolume += book[price].volume;});
 
-  let minPrice;
+  let minPrice = 0;
   let partialSum = 0;
   // find the price where 25% of the volume is below it and the price where 25% is above it
   for(let i=0; i<prices.length; i++) {
     const price = prices[i];
-    partialSum += book[price].volume;
+    partialSum += (book[price].volume * price);
     const percentage = partialSum / totalVolume;
     if(percentage >= .75) {
       return {min: minPrice, max: price};
-    } else if(percentage >= .25) {
+    } else if(percentage >= .25 && minPrice === 0) {
       minPrice = price;
     }
   }
@@ -84,7 +84,6 @@ function getInitialBandValues(
     };
   }
   let curBandIndex = 0;
-  console.log('bands');
 
   _.each(prices, price => {
     if((price >= minVisiblePrice) && (price <= maxVisiblePrice)) {
@@ -135,7 +134,7 @@ function getMaxVisibleBandVolume(
   let maxBandVolume = 0;
   _.each(visiblePrices, price => {
     // if this price is outside of the current band, change band index, reset counts, and determine new band index
-    if(price > ((curBandIndex + 1) * bandPriceSpan)) {
+    if(price > (minVisiblePrice + ((curBandIndex + 1) * bandPriceSpan))) {
       if(curBandVolume > maxBandVolume) {
         maxBandVolume = curBandVolume;
       }
@@ -157,7 +156,24 @@ function getMaxVisibleBandVolume(
   return maxBandVolume;
 }
 
+/**
+ * Given a price level and information about the visualization's current zoom level, calculates the index of the
+ * band that the price level is a part of.
+ */
+function getBandIndex(
+  vizState: {maxPrice: number, minPrice: number, priceGranularity: number}, price: number
+): number {
+  // price range between the bottom and top of each band
+  const bandPriceSpan = (vizState.maxPrice - vizState.minPrice) / vizState.priceGranularity;
+
+  if(price === vizState.maxPrice) {
+    return vizState.priceGranularity - 1;
+  } else {
+    return Math.floor((price - vizState.minPrice) / bandPriceSpan);
+  }
+}
+
 export {
   getPixelPosition, gpp, getPricesFromBook, getInitialPriceRange, getInitialBandValues,
-  getTopOfBook, getMaxVisibleBandVolume
+  getTopOfBook, getMaxVisibleBandVolume, getBandIndex
 };

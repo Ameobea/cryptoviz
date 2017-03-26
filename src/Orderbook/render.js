@@ -1,12 +1,11 @@
 //! Functions for rendering the visualization's components on the canvas
 // @flow
 
-const assert = require('assert');
-
 const _ = require('lodash');
 const chroma = require('chroma-js');
 
-import { gpp, getPricesFromBook } from '../calc';
+import { gpp, getBandIndex } from '../calc';
+import { histRender } from './histRender';
 
 type Orderbook = { [price: number]: {volume: number, isBid: boolean} };
 type BandDef = {startTimestamp: number, endTimestamp: number, volume: number, isBid: ?boolean};
@@ -28,83 +27,99 @@ function renderInitial(vizState: {curBook: Orderbook, canvasHeight: number, canv
 function renderUpdate(
   vizState: {
     activeBands: Array<BandDef>,
-    activePrices: { [price: number]: BandDef },
-    oldBands: { [price: number]: Array<BandDef> },
+    activePrices: { [price: number]: {volume: number, isBid: boolean} },
+    priceLevelUpdates: Array<{price: number, volume: number, timestamp: number, isBid: boolean}>,
     minPrice: number,
     maxVisibleBandVolume: number,
     priceGranularity: number,
     timeGranularity: number,
-    timeScale: number
+    timeScale: number,
+    trades: Array<{timestamp: number, price: number, amountTraded: number}>
   }, change, canvas
 ) {
+  // console.log(change);
   const timestamp = change.timestamp;
+  let volumeDiff, price, curBandIndex, isBid;
+
+  // determine the price level and how much the volume at the update's price level changed
   if(change.modification) {
-    const price = change.modification.price;
-    // price range between the bottom and top of each band
-    const bandPriceSpan = (vizState.maxPrice - vizState.minPrice) / vizState.priceGranularity;
+    price = change.modification.price;
+    isBid = change.modification.isBid;
 
-    // determine the index of the band in which this price update lies
-    let curBandIndex;
-    if(price === vizState.maxPrice) {
-      curBandIndex = vizState.priceGranularity - 1;
-    } else {
-      curBandIndex = Math.floor((price - vizState.minPrice) / bandPriceSpan);
-      // if the update is not visible, no need to re-render so exit early
-      if(curBandIndex < 0 || curBandIndex >= vizState.priceGranularity) {
-        return;
-      }
-    }
-
-    const activeBand = vizState.activeBands[curBandIndex];
-
-    // determine the change in volume level for the band
-    let volumeDiff;
     if(vizState.activePrices[price]) {
       volumeDiff = change.modification.newAmount - vizState.activePrices[price].volume;
     } else {
       volumeDiff = change.modification.newAmount;
     }
 
-    vizState.activePrices[price] = {
-      volume: change.modification.newAmount,
-      isBid: change.modification.isBid,
-    };
+    drawOrderNotification(volumeDiff, timestamp, vizState.maxVisibleBandVolume);
+  } else if(change.removal) {
+    price = change.removal.price;
+    isBid = change.removal.isBid;
 
-    const totalTime = timestamp - activeBand.startTimestamp;
-    if(totalTime <= vizState.timeGranularity) {
-      // if the band is still smaller than the minimum granularity, average the prices together and re-render it
-      const prevTime = activeBand.endTimestamp - activeBand.startTimestamp;
-      const timeSince = timestamp - activeBand.endTimestamp;
-      const prevBandVolume = ((prevTime / totalTime) * activeBand.volume);
-      const newBandVolume = ((timeSince / totalTime) * (activeBand.volume + volumeDiff));
-      volumeDiff = (prevBandVolume + newBandVolume) / 2;
-      drawOrderNotification(volumeDiff, timestamp, vizState.maxVisibleBandVolume);
-      // TODO: See if this is a performance issue for very rapid modifications and if so, only re-render this band or
-      //       don't render anything at all.
-      return drawBands(vizState.maxVisibleBandVolume, vizState.priceGranularity, canvas);
+    if(vizState.activePrices[price]) {
+      volumeDiff = -vizState.activePrices[price].volume;
     } else {
-      // draw the old band
-      activeBand.endTimestamp = timestamp;
-      drawBand(vizState, activeBand, (vizState.priceGranularity - 1) - curBandIndex, canvas.getContext('2d'));
-
-      // since the modification is after the minimum granularity, create a new band and move the old band to `oldBands`.
-      vizState.oldBands[curBandIndex].push(_.cloneDeep(activeBand));
-      activeBand.startTimestamp = timestamp;
+      volumeDiff = 0;
     }
 
-    // update the volume level and end timestamp of the band to reflect this modification
-    activeBand.volume += volumeDiff;
-    activeBand.endTimestamp = timestamp;
-
-    // make sure that we understand how references work
-    assert(_.isEqual(activeBand, vizState.activeBands[curBandIndex]));
-  } else if(change.removal) {
-    // TODO
+    drawOrderNotification(volumeDiff, timestamp, vizState.maxVisibleBandVolume);
   } else if(change.newTrade) {
-    // TODO
+    price = change.newTrade.price;
+    isBid = change.newTrade.wasBidFilled;
+
+    if(vizState.activePrices[price]) {
+      volumeDiff = change.newTrade.amountRemaining - vizState.activePrices[price].volume;
+    } else {
+      volumeDiff = change.newTrade.amountRemaining;
+    }
+
+    vizState.trades.push({timestamp: timestamp, volume: change.newTrade.amountTraded});
+    drawTradeNotification(price, change.newTrade.amountTraded, timestamp, vizState.trades);
   }
 
-  // TODO: Handle the viz hitting the right side of the canvas
+  // determine the index of the band in which this price update lies
+  curBandIndex = getBandIndex(vizState, price);
+
+  // if the band that's being updated is the current high-volume band and the volume change is dramatic,
+  // re-render the entire visualization with a different shading based on the new max volume
+  if(
+    (vizState.activeBands[curBandIndex].volume === vizState.maxVisibleBandVolume) &&
+    Math.abs(1 - (Math.abs(volumeDiff) / vizState.activeBands[curBandIndex].volume)) <= .75
+  ) {
+    console.log('New max value; re-rendering...');
+    return histRender(vizState, canvas);
+  }
+
+  const newPriceVolume = volumeDiff + (vizState.activePrices[price] ? vizState.activePrices[price].volume : 0);
+  vizState.activePrices[price] = {
+    volume: newPriceVolume,
+    isBid: isBid,
+  };
+
+  const activeBand = vizState.activeBands[curBandIndex];
+
+  // draw the old band if it is currently visible
+  activeBand.endTimestamp = timestamp;
+  if(curBandIndex >= 0 && curBandIndex < vizState.priceGranularity) {
+    drawBand(vizState, activeBand, (vizState.priceGranularity - 1) - curBandIndex, canvas.getContext('2d'));
+  }
+
+  // create a new band and add this modification to the list of price level volume updates
+  activeBand.startTimestamp = timestamp;
+  vizState.priceLevelUpdates.push({price: price, timestamp: timestamp, volume: newPriceVolume, isBid: isBid});
+
+  // update the volume level and end timestamp of the band to reflect this modification
+  activeBand.volume += volumeDiff;
+  activeBand.endTimestamp = timestamp;
+
+  // if we've come very near to or crossed the right side of the canvas with this update, re-draw the viz with a larger view
+  const timeRange = vizState.maxTimestamp - vizState.minTimestamp;
+  if(timestamp > vizState.minTimestamp + (.9 * timeRange)) {
+    vizState.maxTimestamp += (vizState.maxTimestamp - vizState.minTimestamp);
+    return histRender(vizState, canvas);
+  }
+  // TODO: Handle the maximum displayed volume changing
 
   // update the visualization and re-draw all active bands.
   drawBands(vizState, timestamp, canvas);
@@ -141,7 +156,7 @@ function drawBand(vizState, band: {startTimestamp: number, endTimestamp: number}
   const bottomRightCoords = gpp(vizState, band.endTimestamp, lowPrice);
 
   ctx.fillStyle = getBandColor(band, vizState.maxVisibleBandVolume);
-  ctx.fillRect(topLeftCoords.x, topLeftCoords.y, bottomRightCoords.x - topLeftCoords.x, bottomRightCoords.y - topLeftCoords.y);
+  ctx.fillRect(topLeftCoords.x, topLeftCoords.y, Math.ceil(bottomRightCoords.x - topLeftCoords.x), bottomRightCoords.y - topLeftCoords.y);
 }
 
 /**
@@ -164,4 +179,11 @@ function drawOrderNotification(price: number, timestamp: number, sizeDiff: numbe
   // TODO
 }
 
-export { renderInitial, renderUpdate };
+/**
+ * Displays a notification of a trade that has occured.
+ */
+function drawTradeNotification(price: number, volume: number, timestamp: number, trades: Array<{timestamp: number, volume: number}>) {
+  // TODO
+}
+
+export { renderInitial, renderUpdate, drawBand, drawBands };

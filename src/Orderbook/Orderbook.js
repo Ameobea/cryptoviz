@@ -1,4 +1,5 @@
 //! An interactive limit orderbook visualization showing the locations of limit orders, trade executions, and price action.
+// @flow
 
 import React from 'react';
 const _ = require('lodash');
@@ -12,7 +13,7 @@ class Orderbook extends React.Component {
     super(props);
     this.vizState = {
       // zoom settings
-      timeScale: 1000 * 60 * 2, // how much time to display on the viz in ms
+      timeScale: 1000 * 60, // how much time to display on the viz in ms
       minTimestamp: null,
       maxTimestamp: null,
       minPrice: null,
@@ -28,18 +29,21 @@ class Orderbook extends React.Component {
       // rendering state
       activeBands: null, // Array<BandDef>
       activePrices: null, // { [key: number]: BandDef }
-      oldBands: {}, // { [key: number]: Array<BandDef> }
+      priceLevelUpdates: [], // Array<{price: number, volume: number, timestamp: number, isBid: boolean}>
+      trades: [], // Array<{timestamp: number, price: number, amountTraded: number}>
     };
   }
 
   componentWillMount() {
     // calculate initial zoom levels given the starting orderbook
-    const {min, max} = getInitialPriceRange(this.props.curBook);
+    // const {min, max} = getInitialPriceRange(this.props.curBook);
     this.vizState.minTimestamp = this.props.initialTimestamp;
     this.vizState.maxTimestamp = this.props.initialTimestamp + this.vizState.timeScale;
-    this.vizState.minPrice = min;
-    this.vizState.maxPrice = max;
-    this.vizState.maxVisibleBandVolume = getMaxVisibleBandVolume(this.props.curBook, min, max, this.vizState.priceGranularity);
+    this.vizState.minPrice = this.props.minPrice;
+    this.vizState.maxPrice = this.props.maxPrice;
+    this.vizState.maxVisibleBandVolume = getMaxVisibleBandVolume(
+      this.props.curBook, this.props.minPrice, this.props.maxPrice, this.vizState.priceGranularity
+    );
 
     // populate the active prices from the initial book image
     const activePrices = {};
@@ -55,14 +59,15 @@ class Orderbook extends React.Component {
 
     // create the initial band values using the initial book image
     this.vizState.activeBands = getInitialBandValues(
-      this.props.initialTimestamp, this.props.curBook, min, max, this.vizState.priceGranularity
+      this.props.initialTimestamp, this.props.curBook, this.props.minPrice, this.props.maxPrice, this.vizState.priceGranularity
     );
 
-    // set up an array of empty arrays for `oldBands`
-    this.vizState.oldBands = new Array(this.vizState.priceGranularity);
-    for(var i=0; i<this.vizState.oldBands.length; i++) {
-      this.vizState.oldBands[i] = [];
-    }
+    // set up the price level updates with the initial prices
+    const priceLevelUpdates = [];
+    _.each(this.vizState.activePrices, (value, price) => {
+      priceLevelUpdates.push({price: price, timestamp: this.props.initialTimestamp, volume: value.volume});
+    });
+    this.vizState.priceLevelUpdates = priceLevelUpdates;
   }
 
   componentDidMount() {
@@ -102,6 +107,8 @@ Orderbook.propTypes = {
   change: React.PropTypes.shape(ChangeShape).isRequired,
   curBook: React.PropTypes.object.isRequired,
   initialTimestamp: React.PropTypes.number.isRequired,
+  minPrice: React.PropTypes.number.isRequired,
+  maxPrice: React.PropTypes.number.isRequired,
 };
 
 Orderbook.defaultProps = {
