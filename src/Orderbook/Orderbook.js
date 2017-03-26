@@ -5,7 +5,7 @@ import React from 'react';
 const _ = require('lodash');
 
 import { ChangeShape } from '../util';
-import { getInitialPriceRange, getMaxVisibleBandVolume, getInitialBandValues } from '../calc';
+import { getMaxVisibleBandVolume, getInitialBandValues, getTopOfBook } from '../calc';
 import { renderInitial, renderUpdate } from './render';
 
 class Orderbook extends React.Component {
@@ -13,7 +13,7 @@ class Orderbook extends React.Component {
     super(props);
     this.vizState = {
       // zoom settings
-      timeScale: 1000 * 60, // how much time to display on the viz in ms
+      timeScale: 1000 * 20, // how much time to display on the viz in ms
       minTimestamp: null,
       maxTimestamp: null,
       minPrice: null,
@@ -21,9 +21,11 @@ class Orderbook extends React.Component {
       priceGranularity: 100, // the number of destinct price levels to mark on the visualization
       timeGranuality: 1000, // the min number of ms that can exist as a distinct unit
       maxVisibleBandVolume: null,
+      manualZoom: false, // if true, then we shouldn't re-adjust the zoom level
       // duplicated settings from props
       canvasHeight: props.canvasHeight,
       canvasWidth: props.canvasWidth,
+      pricePrecision: props.pricePrecision,
       // visual settings
       backgroundColor: '#141414',
       // rendering state
@@ -31,35 +33,43 @@ class Orderbook extends React.Component {
       activePrices: null, // { [key: number]: BandDef }
       priceLevelUpdates: [], // Array<{price: number, volume: number, timestamp: number, isBid: boolean}>
       trades: [], // Array<{timestamp: number, price: number, amountTraded: number}>
+      bestBid: null,
+      bestAsk: null,
     };
   }
 
   componentWillMount() {
     // calculate initial zoom levels given the starting orderbook
-    // const {min, max} = getInitialPriceRange(this.props.curBook);
     this.vizState.minTimestamp = this.props.initialTimestamp;
     this.vizState.maxTimestamp = this.props.initialTimestamp + this.vizState.timeScale;
     this.vizState.minPrice = this.props.minPrice;
     this.vizState.maxPrice = this.props.maxPrice;
     this.vizState.maxVisibleBandVolume = getMaxVisibleBandVolume(
-      this.props.curBook, this.props.minPrice, this.props.maxPrice, this.vizState.priceGranularity
+      this.props.curBook, this.props.minPrice, this.props.maxPrice, this.vizState.priceGranularity, this.vizState.pricePrecision
     );
 
     // populate the active prices from the initial book image
     const activePrices = {};
+    console.log('a');
     _.each(this.props.curBook, (val: {volume: number, isBid: boolean}, price: number) => {
-      activePrices[price] = {
+      activePrices[parseFloat(price).toFixed(this.vizState.pricePrecision)] = {
         startTimestamp: this.props.initialTimestamp,
         endTimestamp: this.props.initialTimestamp,
-        volume: val.volume,
+        volume: val.volume.toFixed(this.vizState.pricePrecision),
         isBid: val.isBid,
       };
     });
     this.vizState.activePrices = activePrices;
 
+    // get the initial top-of-book bid and ask prices
+    const {bestBid, bestAsk} = getTopOfBook(this.vizState.activePrices, this.vizState.pricePrecision);
+    this.vizState.bestBid = bestBid;
+    this.vizState.bestAsk = bestAsk;
+
     // create the initial band values using the initial book image
     this.vizState.activeBands = getInitialBandValues(
-      this.props.initialTimestamp, this.props.curBook, this.props.minPrice, this.props.maxPrice, this.vizState.priceGranularity
+      this.props.initialTimestamp, this.props.curBook, this.props.minPrice, this.props.maxPrice, this.vizState.priceGranularity,
+      this.vizState.pricePrecision
     );
 
     // set up the price level updates with the initial prices
@@ -107,8 +117,8 @@ Orderbook.propTypes = {
   change: React.PropTypes.shape(ChangeShape).isRequired,
   curBook: React.PropTypes.object.isRequired,
   initialTimestamp: React.PropTypes.number.isRequired,
-  minPrice: React.PropTypes.number.isRequired,
   maxPrice: React.PropTypes.number.isRequired,
+  minPrice: React.PropTypes.number.isRequired,
 };
 
 Orderbook.defaultProps = {

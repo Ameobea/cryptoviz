@@ -4,18 +4,17 @@ import React from 'react';
 
 const ChangeShape = {
   modificiation: React.PropTypes.shape({
-    price: React.PropTypes.number.isRequired,
-    newAmount: React.PropTypes.number.isRequired,
+    price: React.PropTypes.string.isRequired,
+    newAmount: React.PropTypes.string.isRequired,
     isBid: React.PropTypes.bool.isRequired
   }),
   removal: React.PropTypes.shape({
-    price: React.PropTypes.number.isRequire,
+    price: React.PropTypes.string.isRequire,
     isBid: React.PropTypes.bool.isRequired
   }),
   newTrade: React.PropTypes.shape({
-    price: React.PropTypes.number.isRequired,
-    amountTraded: React.PropTypes.number.isRequired,
-    amountRemaining: React.PropTypes.number.isRequired,
+    price: React.PropTypes.string.isRequired,
+    amountTraded: React.PropTypes.string.isRequired,
     wasBidFilled: React.PropTypes.bool.isRequired
   }),
   timestamp: React.PropTypes.number.isRequired
