@@ -61,13 +61,13 @@ class IndexPage extends React.Component {
     // function for handling the result of the HTTP request for the initial orderbook
     let handleBook = parsedRes => {
       const bids = _.map(parsedRes.bids, level => {return {
-        price: parseFloat(level[0]).toFixed(props.pricePrecision),
-        volume: parseFloat(level[1]),
+        price: level[0],
+        volume: level[1].toFixed(this.props.pricePrecision),
         isBid: true,
       }; });
       const asks = _.map(parsedRes.asks, level => {return {
-        price: parseFloat(level[0]).toFixed(props.pricePrecision),
-        volume: parseFloat(level[1]),
+        price: level[0],
+        volume: level[1].toFixed(this.props.pricePrecision),
         isBid: false,
       }; });
       const orderbook = _.concat(bids, asks);
@@ -109,16 +109,36 @@ class IndexPage extends React.Component {
 
       const pointer = this;
       this.connection.onopen = session => {
+        let cache = [];
+        let lastSeq = 0;
+        let lastArgs = {};
         console.log('Connection to Poloniex API open.');
+
         session.subscribe(currency, (args, kwargs) => {
           const {modificationCallback, removalCallback, newTradeCallback} = pointer;
-          _.each(args, arg => {
-            try {
-              handleBookEvent(arg, modificationCallback, removalCallback, newTradeCallback);
-            } catch(e) {
-              console.error(e.stack);
+          cache.push({args: args, seq: kwargs.seq});
+          // store up updates before pulling the one with the smallest sequence number out first
+          if(cache.length === 15) {
+            cache = _.sortBy(cache, entry => -entry.seq);
+            const realArgs = cache.pop();
+            if(+realArgs.seq < +lastSeq) {
+              // console.error(`Current seq of ${realArgs.seq} not sequential to ${lastSeq}`);
+              // console.log(realArgs.args, lastArgs);
+            } else {
+              if(+realArgs.seq !== lastSeq + 1) {
+                // console.error(`Gap in sequence numbers: ${lastSeq} to ${realArgs.seq}`);
+              }
+              lastSeq = +realArgs.seq;
+              lastArgs = _.cloneDeep(realArgs.args);
+              _.each(_.sortBy(realArgs.args), arg => {
+                try {
+                  handleBookEvent(arg, modificationCallback, removalCallback, newTradeCallback);
+                } catch(e) {
+                  console.error(e.stack);
+                }
+              });
             }
-          });
+          }
           // handleBookEvent(_.cloneDeep(args), kwargs, modificationCallback, removalCallback, newTradeCallback);
         });
       };
