@@ -3,10 +3,12 @@
 
 import React from 'react';
 const _ = require('lodash');
+import paper from 'paper';
 
 import { ChangeShape } from '../util';
 import { getMaxVisibleBandVolume, getInitialBandValues, getTopOfBook } from '../calc';
 import { renderInitial, renderUpdate } from './render';
+import { initPaperCanvas } from './paperRender';
 
 class Orderbook extends React.Component {
   constructor(props) {
@@ -18,7 +20,7 @@ class Orderbook extends React.Component {
       maxTimestamp: null,
       minPrice: null,
       maxPrice: null,
-      priceGranularity: 100, // the number of destinct price levels to mark on the visualization
+      priceGranularity: 60, // the number of destinct price levels to mark on the visualization
       timeGranuality: 1000, // the min number of ms that can exist as a distinct unit
       maxVisibleBandVolume: null,
       manualZoom: false, // if true, then we shouldn't re-adjust the zoom level
@@ -28,13 +30,17 @@ class Orderbook extends React.Component {
       pricePrecision: props.pricePrecision,
       // visual settings
       backgroundColor: '#141414',
+      maxTradeMarketRadius: 10,
       // rendering state
       activeBands: null, // Array<BandDef>
       activePrices: null, // { [key: number]: BandDef }
       priceLevelUpdates: [], // Array<{price: number, volume: number, timestamp: number, isBid: boolean}>
       trades: [], // Array<{timestamp: number, price: number, amountTraded: number}>
-      bestBid: null,
-      bestAsk: null,
+      // bestBid: null,
+      // bestBidChanges: [],
+      // bestAsk: null,
+      // bestAskChanges: [],
+      maxRenderedTrade: 0,
     };
   }
 
@@ -50,7 +56,6 @@ class Orderbook extends React.Component {
 
     // populate the active prices from the initial book image
     const activePrices = {};
-    console.log('a');
     _.each(this.props.curBook, (val: {volume: number, isBid: boolean}, price: number) => {
       activePrices[parseFloat(price).toFixed(this.vizState.pricePrecision)] = {
         startTimestamp: this.props.initialTimestamp,
@@ -62,9 +67,9 @@ class Orderbook extends React.Component {
     this.vizState.activePrices = activePrices;
 
     // get the initial top-of-book bid and ask prices
-    const {bestBid, bestAsk} = getTopOfBook(this.vizState.activePrices, this.vizState.pricePrecision);
-    this.vizState.bestBid = bestBid;
-    this.vizState.bestAsk = bestAsk;
+    // const {bestBid, bestAsk} = getTopOfBook(this.vizState.activePrices, this.vizState.pricePrecision);
+    // this.vizState.bestBid = bestBid;
+    // this.vizState.bestAsk = bestAsk;
 
     // create the initial band values using the initial book image
     this.vizState.activeBands = getInitialBandValues(
@@ -75,19 +80,24 @@ class Orderbook extends React.Component {
     // set up the price level updates with the initial prices
     const priceLevelUpdates = [];
     _.each(this.vizState.activePrices, (value, price) => {
-      priceLevelUpdates.push({price: price, timestamp: this.props.initialTimestamp, volume: value.volume});
+      priceLevelUpdates.push({price: price, timestamp: this.props.initialTimestamp, volume: value.volume, isBid: value.isBid});
     });
     this.vizState.priceLevelUpdates = priceLevelUpdates;
   }
 
   componentDidMount() {
-    renderInitial(this.vizState, this.canvas);
+    renderInitial(this.vizState, this.nativeCanvas);
+
+    // initialize the PaperJS environment on the internal canvas
+    this.vizState.paperscope = new paper.PaperScope();
+    this.vizState.paperscope.setup(this.paperCanvas);
+    initPaperCanvas(this.vizState);
   }
 
   componentWillReceiveProps(nextProps) {
     if(!_.isEqual(nextProps.change, this.props.change)) {
       // if we've got a new update, render it
-      renderUpdate(this.vizState, nextProps.change, this.canvas);
+      renderUpdate(this.vizState, nextProps.change, this.nativeCanvas);
     }
   }
 
@@ -102,11 +112,23 @@ class Orderbook extends React.Component {
 
   render() {
     return (
-      <canvas
-        height={this.props.canvasHeight}
-        ref={function(canvas){this.canvas = canvas;}.bind(this)}
-        width={this.props.canvasWidth}
-      />
+      <div id='obWrapper' style={{width: this.props.canvasWidth}}>
+        <canvas
+          height={this.props.canvasHeight}
+          id='nativeCanvas'
+          ref={function(canvas){this.nativeCanvas = canvas;}.bind(this)}
+          style={{ marginRight: -this.props.canvasWidth - 2, width: this.props.canvasWidth}}
+          width={this.props.canvasWidth}
+        />
+
+        <canvas
+          height={this.props.canvasHeight}
+          id='paperCanvas'
+          ref={function(canvas){this.paperCanvas = canvas;}.bind(this)}
+          style={{ marginRight: -2 }}
+          width={this.props.canvasWidth}
+        />
+      </div>
     );
   }
 }
@@ -119,6 +141,7 @@ Orderbook.propTypes = {
   initialTimestamp: React.PropTypes.number.isRequired,
   maxPrice: React.PropTypes.number.isRequired,
   minPrice: React.PropTypes.number.isRequired,
+  pricePrecision: React.PropTypes.number.isRequired,
 };
 
 Orderbook.defaultProps = {

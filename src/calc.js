@@ -14,7 +14,7 @@ function getPixelPosition(
   canvasHeight: number, canvasWidth: number, timestamp: number, price: number
 ): {x: number, y: number} {
   const x = ((timestamp - minTime) / (maxTime - minTime)) * canvasWidth;
-  const y = ((price - minPrice) / (maxPrice - minPrice)) * canvasHeight;
+  const y = canvasHeight - (((price - minPrice) / (maxPrice - minPrice)) * canvasHeight);
   return {x: x, y: y};
 }
 
@@ -34,7 +34,16 @@ function gpp(
  */
 function getPricesFromBook(book: Orderbook, pricePrecision: number): Array<string> {
   const floatKeys = _.map(Object.keys(book), parseFloat).sort((a, b) => a-b);
-  return _.map(floatKeys, fp => fp.toFixed(pricePrecision));
+  return _.map(floatKeys, fp => {
+    if(fp === 0) {
+      console.error('fp was error!');
+    }
+    const fixed = fp.toFixed(pricePrecision);
+    if(fixed == "0") {
+      console.error('fixed was 0!');
+    }
+    return fixed;
+  });
 }
 
 /**
@@ -129,7 +138,7 @@ function getTopOfBook(book: Orderbook, pricePrecision: number): {bestBid: number
  */
 function getMaxVisibleBandVolume(
   book: Orderbook, minVisibleFixedPrice: string, maxVisibleFixedPrice: string, priceGranularity: number, pricePrecision: number
-): number {
+): string {
   const minVisiblePrice = parseFloat(minVisibleFixedPrice);
   const maxVisiblePrice = parseFloat(maxVisibleFixedPrice);
   const allPrices = _.map(Object.keys(book), parseFloat).sort((a, b) => a-b);
@@ -162,7 +171,7 @@ function getMaxVisibleBandVolume(
     maxBandVolume = curBandVolume;
   }
 
-  return maxBandVolume;
+  return maxBandVolume.toFixed(pricePrecision);
 }
 
 /**

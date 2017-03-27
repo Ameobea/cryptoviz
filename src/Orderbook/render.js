@@ -6,6 +6,7 @@ const chroma = require('chroma-js');
 
 import { gpp, getBandIndex, getPricesFromBook } from '../calc';
 import { histRender } from './histRender';
+import { renderOrderNotification, renderTradeNotification } from './paperRender';
 
 type Orderbook = { [price: number]: {volume: number, isBid: boolean} };
 type BandDef = {startTimestamp: number, endTimestamp: number, volume: number, isBid: ?boolean};
@@ -52,7 +53,7 @@ function renderUpdate(
       volumeDiff = +change.modification.newAmount;
     }
 
-    drawOrderNotification(volumeDiff, timestamp, vizState.maxVisibleBandVolume);
+    renderOrderNotification(volumeDiff, timestamp, vizState.maxVisibleBandVolume);
   } else if(change.removal) {
     fixedPrice = change.removal.price;
     isBid = change.removal.isBid;
@@ -64,7 +65,7 @@ function renderUpdate(
       volumeDiff = 0;
     }
 
-    drawOrderNotification(volumeDiff, timestamp, vizState.maxVisibleBandVolume);
+    renderOrderNotification(volumeDiff, timestamp, vizState.maxVisibleBandVolume);
   } else if(change.newTrade) {
     // console.log(change.newTrade);
     fixedPrice = change.newTrade.price;
@@ -80,21 +81,10 @@ function renderUpdate(
       volumeDiff = 0;
     }
 
-    vizState.trades.push({timestamp: timestamp, volume: change.newTrade.amountTraded});
-    drawTradeNotification(fixedPrice, change.newTrade.amountTraded, timestamp, vizState.trades);
-
-    // if auto-zoom adjust is on and the trade is very close to being off the screen, adjust visible price levels
-    if(!vizState.manualZoom) {
-      if(change.newTrade.price >= .90 * vizState.maxPrice) {
-        vizState.maxPrice = (vizState.maxPrice * 1.05).toFixed(vizState.pricePrecision);
-        console.log(`Setting max visible price to ${vizState.maxPrice} in response to a edge trade.`);
-        return histRender(vizState, canvas);
-      } else if(change.newTrade.price <= 1.1 * vizState.minPrice) {
-        vizState.minPrice = (vizState.minPrice * .95).toFixed(vizState.pricePrecision);
-        console.log(`Setting min visible price to ${vizState.minPrice} in response to a edge trade.`);
-        return histRender(vizState, canvas);
-      }
-    }
+    vizState.trades.push(
+      {timestamp: timestamp, volume: change.newTrade.amountTraded, isBid: isBid, price: fixedPrice}
+    );
+    renderTradeNotification(vizState, fixedPrice, change.newTrade.amountTraded, timestamp, isBid);
   }
 
   const price = +fixedPrice;
@@ -102,38 +92,55 @@ function renderUpdate(
   // determine the index of the band in which this price update lies
   curBandIndex = getBandIndex(vizState, price);
 
-  // if the band that's being updated is the current high-volume band,
-  // re-render the entire visualization with a different shading based on the new max volume
-  if(vizState.activeBands[curBandIndex].volume === vizState.maxVisibleBandVolume) {
-    console.log('New max band value; re-rendering...');
-    return histRender(vizState, canvas);
-  }
-
   let newPriceVolume = volumeDiff + parseFloat(vizState.activePrices[fixedPrice] ? vizState.activePrices[fixedPrice].volume : 0);
   // console.log(newPriceVolume);
   if(newPriceVolume < 0) {
     newPriceVolume = 0;
-    console.warn(`Negative new volume at price ${price}`);
+    // console.warn(`Negative new volume at price ${price}`);
   }
   vizState.activePrices[fixedPrice] = {
     volume: newPriceVolume,
     isBid: isBid,
   };
 
-  // if this modification took all the volume at a price level, update the best bid/ask
-  if(newPriceVolume === 0 && fixedPrice == vizState.bestBid || fixedPrice == vizState.bestAsk) {
-    updateBestBidAsk(vizState, isBid);
-  // if this modification adds volume at a level better than the current best bid/ask, update as well
-  } else if((isBid && price > vizState.bestBid) || (!isBid && price < vizState.bestAsk)) {
-    updateBestBidAsk(vizState, isBid);
+  // if auto-zoom adjust is on and the trade is very close to being off the screen, adjust visible price levels
+  if(!vizState.manualZoom && change.newTrade) {
+    if(change.newTrade.price >= .995 * vizState.maxPrice) {
+      vizState.maxPrice = (vizState.maxPrice * 1.005).toFixed(vizState.pricePrecision);
+      console.log(`Setting max visible price to ${vizState.maxPrice} in response to a edge trade.`);
+      return histRender(vizState, canvas);
+    } else if(change.newTrade.price <= 1.005 * vizState.minPrice) {
+      vizState.minPrice = (vizState.minPrice * .995).toFixed(vizState.pricePrecision);
+      console.log(`Setting min visible price to ${vizState.minPrice} in response to a edge trade.`);
+      return histRender(vizState, canvas);
+    }
   }
+
+  // if the band that's being updated is the current high-volume band,
+  // re-render the entire visualization with a different shading based on the new max volume
+  if(curBandIndex > 0 && curBandIndex < vizState.priceGranularity) {
+    if(vizState.activeBands[curBandIndex].volume === vizState.maxVisibleBandVolume) {
+      console.log('New max band value; re-rendering...');
+      return histRender(vizState, canvas);
+    }
+  }
+
+  // // if this modification took all the volume at a price level, update the best bid/ask
+  // if(newPriceVolume === 0 /*&& fixedPrice == vizState.bestBid || fixedPrice == vizState.bestAsk*/) {
+  //   updateBestBidAsk(vizState, timestamp, isBid);
+  // // if this modification adds volume at a level better than the current best bid/ask, update as well
+  // } else if((isBid && price > vizState.bestBid) || (!isBid && price < vizState.bestAsk)) {
+  //   updateBestBidAsk(vizState, timestamp, isBid);
+  // }
 
   const activeBand = vizState.activeBands[curBandIndex];
 
-  // draw the old band if it is currently visible
-  activeBand.endTimestamp = timestamp;
+  // draw the old band if it is currently visible.  If not, draw all the other bands and exit.
   if(curBandIndex >= 0 && curBandIndex < vizState.priceGranularity) {
-    drawBand(vizState, activeBand, (vizState.priceGranularity - 1) - curBandIndex, canvas.getContext('2d'));
+    activeBand.endTimestamp = timestamp;
+    drawBand(vizState, activeBand, /*(vizState.priceGranularity - 1) -*/ curBandIndex, canvas.getContext('2d'));
+  } else {
+    return drawBands(vizState, timestamp, canvas);
   }
 
   // create a new band and add this modification to the list of price level volume updates
@@ -162,19 +169,26 @@ function renderUpdate(
   drawBands(vizState, timestamp, canvas);
 }
 
-/**
- * When a order removal or trade wipes out all the volume at a price level, re-calculate the best bid and ask.
- */
-function updateBestBidAsk(vizState, isBid: boolean) {
-  if(isBid) {
-    const thisSideFixedPrices = _.filter(getPricesFromBook(vizState.activePrices), fixedPrice => vizState.activePrices[fixedPrice].isBid);
-    vizState.bestBid = _.maxBy(thisSideFixedPrices, parseFloat);
-  } else {
-    const thisSideFixedPrices = _.filter(getPricesFromBook(vizState.activePrices), fixedPrice => !vizState.activePrices[fixedPrice].isBid);
-    vizState.bestAsk = _.min(thisSideFixedPrices);
-  }
-  console.log(`Updated best ${isBid ? 'bid' : 'ask'} to ${isBid ? vizState.bestBid : vizState.bestAsk}.`);
-}
+// /**
+//  * When a order removal or trade wipes out all the volume at a price level, re-calculate the best bid and ask.
+//  */
+// function updateBestBidAsk(vizState, timestamp, isBid: boolean) {
+//   const allFixedPrices = getPricesFromBook(vizState.activePrices, vizState.pricePrecision);
+//   if(isBid) {
+//     const thisSideFixedPrices = _.filter(allFixedPrices, fixedPrice => {
+//       return +vizState.activePrices[fixedPrice].volume > 0 && vizState.activePrices[fixedPrice].isBid;
+//     });
+//     vizState.bestBid = _.maxBy(thisSideFixedPrices, parseFloat);
+//     vizState.bestBidChanges.push({timestamp: timestamp, price: vizState.bestBid});
+//   } else {
+//     const thisSideFixedPrices = _.filter(allFixedPrices, fixedPrice => {
+//       return +vizState.activePrices[fixedPrice].volume > 0 && !vizState.activePrices[fixedPrice].isBid;
+//     });
+//     vizState.bestAsk = _.minBy(thisSideFixedPrices, parseFloat);
+//     vizState.bestAskChanges.push({timestmap: timestamp, price: vizState.bestAsk});
+//   }
+//   console.log(`Updated best ${isBid ? 'bid' : 'ask'} to ${isBid ? vizState.bestBid : vizState.bestAsk}.`);
+// }
 
 /**
  * Draws all active bands on the visualization.
@@ -189,7 +203,7 @@ function drawBands(vizState, curTimestamp, canvas) {
     if(band.volume !== 0) {
       // render the band, subtracting the index from the total number of bands because the coordinates are reversed on the canvas
       // i is the band's index from the bottom of the viz
-      drawBand(vizState, band, (priceGranularity - 1) - i, ctx);
+      drawBand(vizState, band, /*(priceGranularity - 1) -*/ i, ctx);
     }
   });
 }
@@ -207,34 +221,22 @@ function drawBand(vizState, band: {startTimestamp: number, endTimestamp: number}
   const bottomRightCoords = gpp(vizState, band.endTimestamp, lowPrice);
 
   ctx.fillStyle = getBandColor(band, vizState.maxVisibleBandVolume);
-  ctx.fillRect(topLeftCoords.x, topLeftCoords.y, Math.ceil(bottomRightCoords.x - topLeftCoords.x), bottomRightCoords.y - topLeftCoords.y);
+  ctx.fillRect(Math.floor(topLeftCoords.x), Math.ceil(topLeftCoords.y), Math.ceil(bottomRightCoords.x - topLeftCoords.x), bottomRightCoords.y - topLeftCoords.y);
 }
 
 /**
  * Given a band's density, the maximum visible density on the visualization, and the visualization's style settings,
  * determines the background color of a volume band and returns it.
  */
-function getBandColor(band, maxVisibleVolume: number/* TODO: include viz color settings */) {
+function getBandColor(band, maxVisibleVolume: string/* TODO: include viz color settings */) {
   // TODO
   // const colorScheme = ['#141414', 'F39'];
   const colorScheme = ['#141414', '#7cbeff'];
-  const scale = chroma.scale(colorScheme).mode('lch').domain([0, maxVisibleVolume]);
-  return scale(band.volume).hex();
-}
-
-/**
- * Displays a transitive notification of an order placement, modification, or removal on the visualization.  The intensity of the
- * displayed notification is scaled according to the size of the modification in comparison to the rest of the visible book.
- */
-function drawOrderNotification(price: number, timestamp: number, sizeDiff: number, maxVisibleVolume: number) {
-  // TODO
-}
-
-/**
- * Displays a notification of a trade that has occured.
- */
-function drawTradeNotification(price: number, volume: number, timestamp: number, trades: Array<{timestamp: number, volume: number}>) {
-  // TODO
+  const scale = chroma.scale(colorScheme).mode('lch').domain([0, +maxVisibleVolume]);
+  if(+band.volume > +maxVisibleVolume) {
+    // console.warn(`Received band with volume of ${band.volume} which is greater than supplied max band volume of ${maxVisibleVolume}`);
+  }
+  return scale(+band.volume).hex();
 }
 
 export { renderInitial, renderUpdate, drawBand, drawBands };
