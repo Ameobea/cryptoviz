@@ -9,7 +9,6 @@
     "install-node": "6.9.2"
   },
   "dependencies": {
-    "autobahn": "*",
     "babel-runtime": "^6.9.2",
     "dva": "^1.2.1",
     "dva-loading": "^0.2.0",

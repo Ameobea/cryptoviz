@@ -2,7 +2,6 @@
 
 import React from 'react';
 import fetch from 'dva/fetch';
-const autobahn = require('autobahn');
 const _ = require('lodash');
 
 import OrderbookVisualizer from 'react-orderbook';
@@ -87,8 +86,89 @@ class IndexPage extends React.Component {
     };
     handleTrades = handleTrades.bind(this);
 
+    // utility function used to subscribe to a websocket channel
+    let wsSubscribe = channel => {
+      if (this.connection.readyState === 1){
+        const subCommand = {channel: channel, command: 'subscribe'};
+        this.connection.send(JSON.stringify(subCommand));
+      } else {
+        console.error('Websocket is not yet ready; can\'t subscribe to channel!');
+      }
+    };
+    wsSubscribe = wsSubscribe.bind(this);
+
+    // returns a function that is called once the websocket has established a connection;
+    // subscribes to price channels and handles new messages
+    let handleConnOpen = currency => {
+      const conn = this.connection;
+
+      return function(e) {
+        console.log('Connection to Poloniex API open.');
+
+        wsSubscribe(currency);
+        // trollbox: 1001
+        // wsSubscribe(1001);
+        conn['keepAlive'] = setInterval(function(){
+          try{
+            conn.send('.');
+          } catch (err) {
+            console.error(err);
+          }
+        }, 6e4);
+      };
+    };
+    handleConnOpen = handleConnOpen.bind(this);
+
+    // function for parsing the messages received from the websocket connection and sending their data to where it needs to go
+    let handleWsMsg = e => {
+      if (e.data.length === 0)
+        return;
+
+      var msg = JSON.parse(e.data);
+      console.log(msg);
+      if (msg[1] === 1)
+        return e.target.subscriptions[msg[0]] = true;
+
+      switch(msg[0]) {
+      default:
+        if(msg[0] > 0 && msg[0] < 1000){
+          if(msg[2][0][0] == 'i'){
+            const orderbook = msg[2][0][1];
+            console.log(orderbook);
+
+            if (orderbook.currencyPair != this.currency){
+              console.error(`Expected symbol ${this.currency} but received data for ${marketInfo.currencyPair}`);
+              break;
+            }
+
+            seq = msg[1];
+          }
+        }
+        break;
+      }
+      // if(kwargs.seq === lastSeq + 1) {
+      //   lastSeq += 1;
+      // } else if(lastSeq === 0) {
+      //   lastSeq = kwargs.seq;
+      // } else if(lastSeq === kwargs.seq) {
+      //   // duplicate sequence number; probably just heartbeat.  Ignore it.
+      // }
+      // const {modificationCallback, removalCallback, newTradeCallback} = pointer;
+      // cache.push({args: args, seq: kwargs.seq});
+
+      // _.each(_.sortBy(realArgs.args), arg => {
+      //   try {
+      //     handleBookEvent(arg, modificationCallback, removalCallback, newTradeCallback);
+      //   } catch(e) {
+      //     console.error(e.stack);
+      //   }
+      // });
+    };
+    handleWsMsg = handleWsMsg.bind(this);
+
     // function that's called to populate starting data about a currency for the visualization and initialize the viz
     let initCurrency = currency => {
+      this.currency = currency;
       // fetch a list of recent trades for determining price range to show in the visualizations
       const tradesUrl = `https://poloniex.com/public?command=returnTradeHistory&currencyPair=${currency}`;
       fetch(tradesUrl)
@@ -101,48 +181,13 @@ class IndexPage extends React.Component {
         .then(res => res.json())
         .then(handleBook).catch(console.error);
 
-      // initialize WS connection to Poloniex servers
-      this.connection = new autobahn.Connection({
-        url: 'wss://api.poloniex.com',
-        realm: 'realm1'
-      });
-
-      const pointer = this;
-      this.connection.onopen = session => {
-        let cache = [];
-        let lastSeq = 0;
-        let lastArgs = {};
-        console.log('Connection to Poloniex API open.');
-
-        session.subscribe(currency, (args, kwargs) => {
-          const {modificationCallback, removalCallback, newTradeCallback} = pointer;
-          cache.push({args: args, seq: kwargs.seq});
-          // store up updates before pulling the one with the smallest sequence number out first
-          if(cache.length === 15) {
-            cache = _.sortBy(cache, entry => -entry.seq);
-            const realArgs = cache.pop();
-            if(+realArgs.seq < +lastSeq) {
-              // console.error(`Current seq of ${realArgs.seq} not sequential to ${lastSeq}`);
-              // console.log(realArgs.args, lastArgs);
-            } else {
-              if(+realArgs.seq !== lastSeq + 1) {
-                // console.error(`Gap in sequence numbers: ${lastSeq} to ${realArgs.seq}`);
-              }
-              lastSeq = +realArgs.seq;
-              lastArgs = _.cloneDeep(realArgs.args);
-              _.each(_.sortBy(realArgs.args), arg => {
-                try {
-                  handleBookEvent(arg, modificationCallback, removalCallback, newTradeCallback);
-                } catch(e) {
-                  console.error(e.stack);
-                }
-              });
-            }
-          }
-          // handleBookEvent(_.cloneDeep(args), kwargs, modificationCallback, removalCallback, newTradeCallback);
-        });
-      };
-
+      // initialize WS connection to Poloniex servers and open the connection
+      this.connection = new WebSocket('wss://api2.poloniex.com');
+      this.connection['subscriptions'] = {};
+      this.connection.onopen = handleConnOpen(currency);
+      this.cache = [];
+      this.lastSeq = 0;
+      this.connection.onmessage = handleWsMsg;
       this.connection.open();
     };
     initCurrency = initCurrency.bind(this);
