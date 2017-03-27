@@ -26,7 +26,7 @@ function gpp(
     : {minPrice: number, maxPrice: number, minTimestamp: number, maxTimestamp: number, canvasHeight: number, canvasWidth: number},
   timestamp: number, price: number
 ) {
-  return getPixelPosition(minPrice, maxPrice, minTimestamp, maxTimestamp, canvasHeight, canvasWidth, timestamp, price);
+  return getPixelPosition(+minPrice, +maxPrice, minTimestamp, maxTimestamp, canvasHeight, canvasWidth, timestamp, +price);
 }
 
 /**
@@ -34,16 +34,7 @@ function gpp(
  */
 function getPricesFromBook(book: Orderbook, pricePrecision: number): Array<string> {
   const floatKeys = _.map(Object.keys(book), parseFloat).sort((a, b) => a-b);
-  return _.map(floatKeys, fp => {
-    if(fp === 0) {
-      console.error('fp was error!');
-    }
-    const fixed = fp.toFixed(pricePrecision);
-    if(fixed == "0") {
-      console.error('fixed was 0!');
-    }
-    return fixed;
-  });
+  return _.map(floatKeys, fp => fp.toFixed(pricePrecision));
 }
 
 /**
@@ -53,7 +44,7 @@ function getPricesFromBook(book: Orderbook, pricePrecision: number): Array<strin
  * @param {number} pricePrecision - The max number of decimals a price level may have.
  */
 function getInitialPriceRange(book: Orderbook, pricePrecision: number): {min: number, max: number} {
-  const prices = getPricesFromBook(book, pricePrecision);
+  const prices = Object.keys(initialBook);
 
   // calculate the total amount of volume listed in the book
   const totalVolume = _.sumBy(prices, price => book[price].volume * price);
@@ -83,7 +74,8 @@ function getInitialBandValues(
   initialTimestamp: number, initialBook: Orderbook, minVisiblePrice: number, maxVisiblePrice: number, priceGranularity: number,
   pricePrecision: number
 ): Array<BandDef> {
-  const prices = getPricesFromBook(initialBook, pricePrecision);
+  // const prices = getPricesFromBook(initialBook, pricePrecision);
+  const prices = Object.keys(initialBook);
 
   // price range between the bottom and top of each band
   const bandPriceSpan = (maxVisiblePrice - minVisiblePrice) / priceGranularity;
@@ -99,13 +91,9 @@ function getInitialBandValues(
   let curBandIndex = 0;
 
   _.each(prices, price => {
-    if((price >= minVisiblePrice) && (price <= maxVisiblePrice)) {
-      if(price > ((curBandIndex + 1) * bandPriceSpan)) {
-        if(price === maxVisiblePrice) {
-          curBandIndex = priceGranularity - 1;
-        } else {
-          curBandIndex = Math.floor(((price - minVisiblePrice) / visiblePriceRange) * priceGranularity);
-        }
+    if((+price >= +minVisiblePrice) && (+price <= +maxVisiblePrice)) {
+      if(+price > ((curBandIndex + 1) * bandPriceSpan)) {
+        curBandIndex = getBandIndex({maxPrice: maxVisiblePrice, minPrice: minVisiblePrice, priceGranularity: priceGranularity}, price);
 
         const rawVolume = (+bands[curBandIndex].volume + +initialBook[price].volume);
         bands[curBandIndex].volume = rawVolume.toFixed(pricePrecision);
@@ -137,7 +125,7 @@ function getTopOfBook(book: Orderbook, pricePrecision: number): {bestBid: number
  * located in one band to be used for shading the other bands.
  */
 function getMaxVisibleBandVolume(
-  book: Orderbook, minVisibleFixedPrice: string, maxVisibleFixedPrice: string, priceGranularity: number, pricePrecision: number
+  vizState, book: Orderbook, minVisibleFixedPrice: string, maxVisibleFixedPrice: string, priceGranularity: number, pricePrecision: number
 ): string {
   const minVisiblePrice = parseFloat(minVisibleFixedPrice);
   const maxVisiblePrice = parseFloat(maxVisibleFixedPrice);
@@ -145,26 +133,21 @@ function getMaxVisibleBandVolume(
   const visiblePrices = _.filter(allPrices, price => price >= minVisiblePrice && price <= maxVisiblePrice);
   // const visibleFixedPrices = _.map(visiblePrices, fp => fp.toFixed(pricePrecision));
 
-  // price range between the bottom and top of each band
-  const bandPriceSpan = (maxVisiblePrice - minVisiblePrice) / priceGranularity;
   let curBandIndex = 0;
   let curBandVolume = 0;
   let maxBandVolume = 0;
   _.each(visiblePrices, price => {
     // if this price is outside of the current band, change band index, reset counts, and determine new band index
-    if(price > (minVisiblePrice + ((curBandIndex + 1) * bandPriceSpan))) {
+    const newBandIndex = getBandIndex(vizState, price);
+    if(newBandIndex > curBandIndex) {
       if(curBandVolume > maxBandVolume) {
         maxBandVolume = curBandVolume;
       }
       curBandVolume = 0;
-      if(price !== maxVisiblePrice) {
-        curBandIndex = Math.floor((price - minVisiblePrice) / bandPriceSpan);
-      } else {
-        curBandIndex = priceGranularity - 1;
-      }
+      curBandIndex = newBandIndex;
     }
 
-    curBandVolume += parseFloat(book[price.toFixed(pricePrecision)].volume);
+    curBandVolume += +book[price.toFixed(pricePrecision)].volume;
   });
 
   if(curBandVolume > maxBandVolume) {
@@ -182,12 +165,12 @@ function getBandIndex(
   vizState: {maxPrice: number, minPrice: number, priceGranularity: number}, price: number
 ): number {
   // price range between the bottom and top of each band
-  const bandPriceSpan = (vizState.maxPrice - vizState.minPrice) / vizState.priceGranularity;
+  const bandPriceSpan = (+vizState.maxPrice - +vizState.minPrice) / vizState.priceGranularity;
 
   if(price === vizState.maxPrice) {
     return vizState.priceGranularity - 1;
   } else {
-    return Math.floor((price - vizState.minPrice) / bandPriceSpan);
+    return Math.floor((+price - +vizState.minPrice) / bandPriceSpan);
   }
 }
 

@@ -20,7 +20,7 @@ class Orderbook extends React.Component {
       maxTimestamp: null,
       minPrice: null,
       maxPrice: null,
-      priceGranularity: 60, // the number of destinct price levels to mark on the visualization
+      priceGranularity: 100, // the number of destinct price levels to mark on the visualization
       timeGranuality: 1000, // the min number of ms that can exist as a distinct unit
       maxVisibleBandVolume: null,
       manualZoom: false, // if true, then we shouldn't re-adjust the zoom level
@@ -51,16 +51,16 @@ class Orderbook extends React.Component {
     this.vizState.minPrice = this.props.minPrice;
     this.vizState.maxPrice = this.props.maxPrice;
     this.vizState.maxVisibleBandVolume = getMaxVisibleBandVolume(
-      this.props.curBook, this.props.minPrice, this.props.maxPrice, this.vizState.priceGranularity, this.vizState.pricePrecision
+      this.vizState, this.props.curBook, this.props.minPrice, this.props.maxPrice, this.vizState.priceGranularity, this.vizState.pricePrecision
     );
 
     // populate the active prices from the initial book image
     const activePrices = {};
     _.each(this.props.curBook, (val: {volume: number, isBid: boolean}, price: number) => {
-      activePrices[parseFloat(price).toFixed(this.vizState.pricePrecision)] = {
+      activePrices[price] = {
         startTimestamp: this.props.initialTimestamp,
         endTimestamp: this.props.initialTimestamp,
-        volume: val.volume.toFixed(this.vizState.pricePrecision),
+        volume: this.vizState.pricePrecision,
         isBid: val.isBid,
       };
     });

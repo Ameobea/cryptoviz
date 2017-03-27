@@ -19,62 +19,49 @@ function histRender(vizState, canvas) {
 
   // calculate a new max volume
   vizState.maxVisibleBandVolume = getMaxVisibleBandVolume(
-    vizState.activePrices, vizState.minPrice, vizState.maxPrice, vizState.priceGranularity, vizState.pricePrecision
+    vizState, vizState.activePrices, vizState.minPrice, vizState.maxPrice, vizState.priceGranularity, vizState.pricePrecision
   );
 
   // find the price levels at the beginning of the visible time window by filtering the list of price level updates
   // there isn't a need to sort them by timestamp because they should already be sorted
-  const initialPriceLevels = {};
+  const curPriceLevels = {};
   _.each(_.filter(vizState.priceLevelUpdates, levelUpdate => levelUpdate.timestamp <= vizState.minTimestamp), ({price, volume, isBid}) => {
-    // only store visible prices
-    const parsedPrice = +price;
-    if(_.isNumber(price)) {
-      console.error('Price was number in `histRender`!');
-    }
-
-    if(isBid !== true && isBid !== false) {
-      // console.error(price, volume, isBid);
-    }
-
-    initialPriceLevels[price] = {
+    curPriceLevels[price] = {
       volume: volume,
       isBid: isBid
     };
   });
-  vizState.activePrices = initialPriceLevels;
 
   // set up the initial active bands using the generated initial price levels
   vizState.activeBands = getInitialBandValues(
-    vizState.minTimestamp, initialPriceLevels, vizState.minPrice, vizState.maxPrice, vizState.priceGranularity,
+    vizState.minTimestamp, curPriceLevels, vizState.minPrice, vizState.maxPrice, vizState.priceGranularity,
     vizState.pricePrecision
   );
 
   // loop through all of the visible price updates, drawing bands and updating the book as we go
   let curTimestamp;
-  const visibleLevelUpdates = _.filter(vizState.priceLevelUpdates, levelUpdate => {
-    return levelUpdate.timestamp > vizState.minTimestamp && levelUpdate.timestamp <= vizState.maxTimestamp
-      && vizState.minPrice < levelUpdate.price && vizState.maxPrice > levelUpdate.price;
-  });
-  _.each(visibleLevelUpdates, ({price, volume, timestamp, isBid}) => {
-    const volumeDiff = vizState.activePrices[price] ? +volume - +vizState.activePrices[price].volume : +volume;
+  _.each(vizState.priceLevelUpdates, ({price, volume, timestamp, isBid}) => {
+    const volumeDiff = curPriceLevels[price] ? +volume - +curPriceLevels[price].volume : +volume;
 
     // update the price level to reflect the update
-    vizState.activePrices[price] = {
+    curPriceLevels[price] = {
       volume: volume,
       isBid: isBid,
     };
 
-    // draw the band between the last update for the band and the current timestamp
+    // draw the band between the last update for the band and the current timestamp if its visible
     const bandIndex = getBandIndex(vizState, price);
-    const activeBand = vizState.activeBands[bandIndex];
-    activeBand.endTimestamp = timestamp;
-    drawBand(vizState, activeBand, (vizState.priceGranularity - 1) - bandIndex, canvas.getContext('2d'));
+    if(bandIndex >= 0 && bandIndex < vizState.priceGranularity) {
+      const activeBand = vizState.activeBands[bandIndex];
+      activeBand.endTimestamp = timestamp;
+      drawBand(vizState, activeBand, bandIndex, canvas.getContext('2d'));
 
-    // update the band volume and end timestamp to reflect this update
-    const rawVolume = +activeBand.volume + volumeDiff;
-    activeBand.volume = rawVolume.toFixed(vizState.pricePrecision);
-    activeBand.startTimestamp = vizState.activeBands[bandIndex].endTimestamp;
-    assert(_.isEqual(activeBand, vizState.activeBands[bandIndex]));
+      // update the band volume and end timestamp to reflect this update
+      const rawVolume = +activeBand.volume + volumeDiff;
+      activeBand.volume = rawVolume.toFixed(vizState.pricePrecision);
+      activeBand.startTimestamp = vizState.activeBands[bandIndex].endTimestamp;
+      assert(_.isEqual(activeBand, vizState.activeBands[bandIndex]));
+    }
 
     // update the most recent timestamp
     curTimestamp = timestamp;
