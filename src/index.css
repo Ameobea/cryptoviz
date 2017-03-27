@@ -4,5 +4,27 @@ body {
 }
 
 canvas {
-  border: 1px solid #a8a8a8;
+  /*border: 1px solid #a8a8a8;*/
+}
+
+#obWrapper {
+  width: 250px;
+  background-color: #eee;
+}
+
+#paperCanvas {
+  width: 250px;
+  border: 1px solid #ccc;
+  display: inline;
+  float: left;
+  margin-right:-250px;
+  background-color: rgba(0, 0, 0, 0);
+}
+
+#nativeCanvas {
+  width: 250px;
+  border: 1px solid #ccc;
+  display: inline;
+  float: right;
+  background-color: rgba(0, 0, 0, 0);
 }

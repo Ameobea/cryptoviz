@@ -7,51 +7,130 @@ const _ = require('lodash');
 
 import OrderbookVisualizer from 'react-orderbook';
 
-type OrderBookMessage = {data: {type: string, rate: string, amount: ?string, tradeID: ?string, date: ?string, total: ?string}, type: string, timestamp: number};
+type OrderBookMessage = {
+  data: {type: string, rate: string, amount: ?string, tradeID: ?string, date: ?string, total: ?string},
+  type: string, timestamp: number
+};
 
-function handleBookEvent(args: Array<OrderBookMessage>, kwargs: {seq: number}, modificationCallback, removalCallback, newTradeCallback) {
-  _.each(args, arg => {
-    if(arg.type === 'orderBookModify') {
-      modificationCallback({timestamp: _.now(), modification: {
-        price: parseFloat(arg.data.rate),
-        newAmount: parseFloat(arg.data.amount),
-        isBid: arg.data.type == 'bid' ? true : false,
-      }});
-    } else if(arg.type === 'orderBookRemove') {
-      removalCallback({timestamp: _.now(), removal: {
-        price: parseFloat(arg.data.rate),
-        isBid: arg.data.type == 'bid' ? true : false,
-      }});
-    } else if(arg.type === 'newTrade') {
-      newTradeCallback({timestamp: _.now(), newTrade: {
-        price: parseFloat(arg.data.rate),
-        wasBidFilled: arg.data.type == 'buy' ? true : false,
-        amountTraded: parseFloat(arg.data.total),
-        amountRemaining: parseFloat(arg.data.amount),
-      }});
-    } else {
-      console.log(`Received invalid type on message from Poloniex: ${JSON.stringify(arg)}`);
-    }
-  });
+function handleBookEvent(
+  arg: OrderBookMessage, modificationCallback, removalCallback, newTradeCallback
+) {
+  if(arg.type == 'orderBookModify') {
+    modificationCallback({timestamp: _.now(), modification: {
+      price: arg.data.rate,
+      newAmount: arg.data.amount,
+      isBid: arg.data.type == 'bid' ? true : false,
+    }});
+  } else if(arg.type == 'orderBookRemove') {
+    removalCallback({timestamp: _.now(), removal: {
+      price: arg.data.rate,
+      isBid: arg.data.type == 'bid' ? true : false,
+    }});
+  } else if(arg.type == 'newTrade') {
+    newTradeCallback({timestamp: _.now(), newTrade: {
+      price: arg.data.rate,
+      wasBidFilled: arg.data.type == 'buy' ? false : true,
+      amountTraded: arg.data.amount,
+    }});
+  } else {
+    console.log(`Received invalid type on message from Poloniex: ${JSON.stringify(arg)}`);
+  }
 }
 
 class IndexPage extends React.Component {
   constructor(props){
     super(props);
 
-    // fetch an image of the initial orderbook from the HTTP API
-    const bookUrl = `https://poloniex.com/public?command=returnOrderBook&currencyPair=${this.props.pair}&depth=1000000000`;
-    let handleResponse = parsedRes => {
-      const bids = _.map(parsedRes.asks, level => {return {price: parseFloat(level[0]), volume: parseFloat(level[1])}; });
-      const asks = _.map(parsedRes.bids, level => {return {price: parseFloat(level[0]), volume: parseFloat(level[1])}; });
+    // function for handling the result of the HTTP request for the list of currencies
+    let handleCurrencies = currencyDefinitions => {
+      const activeSymbols = _.filter(Object.keys(currencyDefinitions), symbol => {
+        return !currencyDefinitions[symbol].delisted && !currencyDefinitions[symbol].frozen;
+      });
+
+      this.setState({currencies: _.zipObject(activeSymbols, _.map(activeSymbols, symbol => currencyDefinitions[symbol]))});
+      if(_.includes(activeSymbols, 'ETH')) {
+        return 'BTC_ETH';
+      } else if(_.includes(activeSymbols, 'XMR')) {
+        return 'BTC_XMR';
+      } else {
+        return `BTC_${activeSymbols[0]}`;
+      }
+    };
+    handleCurrencies = handleCurrencies.bind(this);
+
+    // function for handling the result of the HTTP request for the initial orderbook
+    let handleBook = parsedRes => {
+      const bids = _.map(parsedRes.bids, level => {return {
+        price: parseFloat(level[0]).toFixed(props.pricePrecision),
+        volume: parseFloat(level[1]),
+        isBid: true,
+      }; });
+      const asks = _.map(parsedRes.asks, level => {return {
+        price: parseFloat(level[0]).toFixed(props.pricePrecision),
+        volume: parseFloat(level[1]),
+        isBid: false,
+      }; });
       const orderbook = _.concat(bids, asks);
 
       // insert the initial book into the component's state
       this.setState({initialBook: orderbook});
     };
+    handleBook = handleBook.bind(this);
 
-    handleResponse = handleResponse.bind(this);
-    fetch(bookUrl).then(res => res.json()).then(handleResponse).catch(err => {console.log(err);});
+    // function for handling the result of the HTTP request for recent trades used to determine starting price zoom levels
+    let handleTrades = tradeHistory => {
+      const minRate = _.minBy(tradeHistory, 'rate').rate;
+      const maxRate = _.maxBy(tradeHistory, 'rate').rate;
+
+      // console.log(`Setting minPrice to ${minRate} and maxPrice to ${maxRate}`);
+      this.setState({minPrice: minRate * .995, maxPrice: maxRate * 1.005});
+    };
+    handleTrades = handleTrades.bind(this);
+
+    // function that's called to populate starting data about a currency for the visualization and initialize the viz
+    let initCurrency = currency => {
+      // fetch a list of recent trades for determining price range to show in the visualizations
+      const tradesUrl = `https://poloniex.com/public?command=returnTradeHistory&currencyPair=${currency}`;
+      fetch(tradesUrl)
+        .then(res => res.json())
+        .then(handleTrades).catch(console.error);
+
+      // fetch an image of the initial orderbook from the HTTP API
+      const bookUrl = `https://poloniex.com/public?command=returnOrderBook&currencyPair=${currency}&depth=1000000000`;
+      fetch(bookUrl)
+        .then(res => res.json())
+        .then(handleBook).catch(console.error);
+
+      // initialize WS connection to Poloniex servers
+      this.connection = new autobahn.Connection({
+        url: 'wss://api.poloniex.com',
+        realm: 'realm1'
+      });
+
+      const pointer = this;
+      this.connection.onopen = session => {
+        console.log('Connection to Poloniex API open.');
+        session.subscribe(currency, (args, kwargs) => {
+          const {modificationCallback, removalCallback, newTradeCallback} = pointer;
+          _.each(args, arg => {
+            try {
+              handleBookEvent(arg, modificationCallback, removalCallback, newTradeCallback);
+            } catch(e) {
+              console.error(e.stack);
+            }
+          });
+          // handleBookEvent(_.cloneDeep(args), kwargs, modificationCallback, removalCallback, newTradeCallback);
+        });
+      };
+
+      this.connection.open();
+    };
+    initCurrency = initCurrency.bind(this);
+
+    const currenciesUrl = 'https://poloniex.com/public?command=returnCurrencies';
+    fetch(currenciesUrl).then(res => res.json())
+      .then(handleCurrencies).catch(console.error)
+      .then(initCurrency).catch(console.error);
 
     // bind callback executors
     this.bookModificationExecutor = this.bookModificationExecutor.bind(this);
@@ -63,26 +142,12 @@ class IndexPage extends React.Component {
     this.removalCallback = () => {};
     this.newTradeCallback = () => {};
 
-    // initialize WS connection to Poloniex servers
-    this.connection = new autobahn.Connection({
-      url: 'wss://api.poloniex.com',
-      realm: 'realm1'
-    });
-
-    const pointer = this;
-    this.connection.onopen = session => {
-      console.log('Connection to Poloniex API open.');
-      session.subscribe('BTC_ETH', (args, kwargs) => {
-        const {modificationCallback, removalCallback, newTradeCallback} = pointer;
-        handleBookEvent(args, kwargs, modificationCallback, removalCallback, newTradeCallback);
-      });
-    };
-
-    this.connection.open();
-
     this.state = {
-      curTimestamp: _.now(),
+      currencies: {},
       initialBook: null,
+      selectedCurrency: 'ETH',
+      maxPrice: null,
+      minPrice: null,
     };
   }
 
@@ -99,18 +164,19 @@ class IndexPage extends React.Component {
   }
 
   render() {
-    if(!this.state.initialBook) {
+    if(!this.state.initialBook || !this.state.minPrice || !this.state.maxPrice) {
       return <div>{'Loading...'}</div>;
     } else {
       return (
         <OrderbookVisualizer
           bookModificationCallbackExecutor={this.bookModificationExecutor}
           bookRemovalCallbackExecutor={this.bookRemovalExecutor}
-          initialTimestamp={this.state.curTimestamp}
           initialBook={this.state.initialBook}
+          initialTimestamp={_.now()}
+          maxPrice={this.state.maxPrice.toFixed(this.props.pricePrecision)}
+          minPrice={this.state.minPrice.toFixed(this.props.pricePrecision)}
           newTradeCallbackExecutor={this.newTradeExecutor}
-          minPrice={0.05}
-          maxPrice={0.058}
+          pricePrecision={this.props.pricePrecision}
         />
       );
     }
@@ -118,11 +184,11 @@ class IndexPage extends React.Component {
 }
 
 IndexPage.propTypes = {
-  pair: React.PropTypes.string,
+  pricePrecision: React.PropTypes.number,
 };
 
 IndexPage.defaultProps = {
-  pair: 'BTC_ETH',
+  pricePrecision: 8,
 };
 
 export default IndexPage;

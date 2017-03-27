@@ -12,6 +12,7 @@
     "autobahn": "*",
     "babel-runtime": "^6.9.2",
     "dva": "^1.2.1",
+    "dva-loading": "^0.2.0",
     "lodash": "4.17.4",
     "react": "^15.4.0",
     "react-dom": "^15.4.0"
