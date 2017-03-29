@@ -19,6 +19,20 @@ function getPixelPosition(
 }
 
 /**
+ * Given a timestamp, returns its pixel position.
+ */
+function getPixelX(vizState, timestamp) {
+  return ((timestamp - vizState.minTimestamp) / (vizState.maxTimestamp - vizState.minTimestamp)) * vizState.canvasWidth;
+}
+
+/**
+ * Given a price, returns its pixel position
+ */
+function getPixelY(vizState, price) {
+  return vizState.canvasHeight - (((+price - vizState.minPrice) / (vizState.maxPrice - vizState.minPrice)) * vizState.canvasHeight);
+}
+
+/**
  * Wrapper function around `getPixelPosition` that gets settings from `vizState`
  */
 function gpp(
@@ -39,12 +53,12 @@ function getPricesFromBook(book: Orderbook, pricePrecision: number): Array<strin
 
 /**
  * Given an image of the orderbook as a HashMap, calculates an optimal min and max zoom using the density of orders
- * and the current top-of-book price.
+ * and the current top-of-book price.  NOT CURRENTLY USED.
  * @return {{min: number, max: number}} - The optimal locations of the min and max visible prices
  * @param {number} pricePrecision - The max number of decimals a price level may have.
  */
 function getInitialPriceRange(book: Orderbook, pricePrecision: number): {min: number, max: number} {
-  const prices = Object.keys(initialBook);
+  const prices = Object.keys(book);
 
   // calculate the total amount of volume listed in the book
   const totalVolume = _.sumBy(prices, price => book[price].volume * price);
@@ -79,7 +93,6 @@ function getInitialBandValues(
 
   // price range between the bottom and top of each band
   const bandPriceSpan = (maxVisiblePrice - minVisiblePrice) / priceGranularity;
-  const visiblePriceRange = maxVisiblePrice - minVisiblePrice;
   const bands = new Array(priceGranularity);
   for(var i=0; i<bands.length; i++) {
     bands[i] = {
@@ -176,5 +189,5 @@ function getBandIndex(
 
 export {
   getPixelPosition, gpp, getPricesFromBook, getInitialPriceRange, getInitialBandValues,
-  getTopOfBook, getMaxVisibleBandVolume, getBandIndex
+  getTopOfBook, getMaxVisibleBandVolume, getBandIndex, getPixelX, getPixelY
 };

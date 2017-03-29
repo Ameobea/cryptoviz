@@ -110,8 +110,8 @@ OrderbookVisualizer.propTypes = {
   depthChartCanvasHeight: React.PropTypes.number,
   depthChartCanvasWidth: React.PropTypes.number,
   initialBook: React.PropTypes.arrayOf(React.PropTypes.shape({
-    price: React.PropTypes.number.isRequired,
-    volume: React.PropTypes.number.isRequired
+    price: React.PropTypes.string.isRequired,
+    volume: React.PropTypes.string.isRequired
   })).isRequired,
   initialTimestamp: React.PropTypes.number.isRequired,
   maxPrice: React.PropTypes.string.isRequired,
@@ -124,7 +124,7 @@ OrderbookVisualizer.propTypes = {
 
 OrderbookVisualizer.defaultProps = {
   orderbookCanvasHeight: 500,
-  orderbookCanvasWidth: 1200,
+  orderbookCanvasWidth: document.getElementsByTagName('body')[0].offsetWidth,
   depthChartCanvasHeight: 600,
   depthChartCanvasWidth: 900,
 };

@@ -4,9 +4,9 @@
 const _ = require('lodash');
 const chroma = require('chroma-js');
 
-import { gpp, getBandIndex, getPricesFromBook } from '../calc';
+import { gpp, getBandIndex } from '../calc';
 import { histRender } from './histRender';
-import { renderOrderNotification, renderTradeNotification } from './paperRender';
+import { renderOrderNotification, renderTradeNotification, extendTradeLines } from './paperRender';
 
 type Orderbook = { [price: number]: {volume: number, isBid: boolean} };
 type BandDef = {startTimestamp: number, endTimestamp: number, volume: number, isBid: ?boolean};
@@ -61,7 +61,7 @@ function renderUpdate(
     if(vizState.activePrices[fixedPrice]) {
       volumeDiff = -+vizState.activePrices[fixedPrice].volume;
     } else {
-      console.error(`All orders removed at price level ${fixedPrice} but we had no volume level there before!`);
+      console.warn(`All orders removed at price level ${fixedPrice} but we had no volume level there before!`);
       volumeDiff = 0;
     }
 
@@ -72,44 +72,45 @@ function renderUpdate(
 
     volumeDiff = 0;
     // look through the book and see if there are any impossible orders, removing them if there are.
-    const fixedPrices = Object.keys(vizState.activePrices);
-    _.each(fixedPrices, otherFixedPrice => {
-      const activePrice = vizState.activePrices[otherFixedPrice];
-      if(activePrice.isBid && isBid && (+otherFixedPrice  > +fixedPrice) && +activePrice.volume > 0) {
-        console.warn(`Impossible bid in book at ${otherFixedPrice} with volume ${activePrice.volume}; There was just a filled bid at ${fixedPrice}.`);
-        // reduce the band's volume as well if it's visible
-        const bandIx = getBandIndex(vizState, otherFixedPrice);
-        if(bandIx >= 0 && bandIx < vizState.priceGranularity) {
-          let rawVolume = +vizState.activeBands[bandIx].volume - +activePrice.volume;
-          if(rawVolume < 0) {
-            rawVolume = 0;
-          }
-          vizState.activeBands[bandIx].volume = rawVolume.toFixed(vizState.pricePrecision);
-        }
-        activePrice.volume = '0';
-      } else if(!activePrice.isBid && !isBid && (+otherFixedPrice < +fixedPrice) && +activePrice.volume > 0) {
-        console.warn(`Impossible ask in book at ${otherFixedPrice} with volume ${activePrice.volume}; There was just an ask filled at ${fixedPrice}.`);
-        // reduce the band's volume as well if it's visible
-        const bandIx = getBandIndex(vizState, otherFixedPrice);
-        if(bandIx >= 0 && bandIx < vizState.priceGranularity) {
-          let rawVolume = +vizState.activeBands[bandIx].volume - +activePrice.volume;
-          if(rawVolume < 0) {
-            rawVolume = 0;
-          }
-          vizState.activeBands[bandIx].volume = rawVolume.toFixed(vizState.pricePrecision);
-        }
-        activePrice.volume = '0';
-      }
-    });
-
-    if(!vizState.activePrices[fixedPrice] || !vizState.activePrices[fixedPrice].volume) {
-      console.warn(`Received new trade at price ${fixedPrice} but no volume is shown to be there!`);
-    }
+    // const fixedPrices = Object.keys(vizState.activePrices);
+    // _.each(fixedPrices, otherFixedPrice => {
+    //   const activePrice = vizState.activePrices[otherFixedPrice];
+    //   if(activePrice.isBid && isBid && (+otherFixedPrice  > +fixedPrice) && +activePrice.volume > 0) {
+    //     console.warn(`Impossible bid in book at ${otherFixedPrice} with volume ${activePrice.volume}; There was just a filled bid at ${fixedPrice}.`);
+    //     // reduce the band's volume as well if it's visible
+    //     // const bandIx = getBandIndex(vizState, otherFixedPrice);
+    //     // if(bandIx >= 0 && bandIx < vizState.priceGranularity) {
+    //     //   let rawVolume = +vizState.activeBands[bandIx].volume - +activePrice.volume;
+    //     //   if(rawVolume < 0) {
+    //     //     rawVolume = 0;
+    //     //   }
+    //     //   vizState.activeBands[bandIx].volume = rawVolume.toFixed(vizState.pricePrecision);
+    //     // }
+    //     // activePrice.volume = '0';
+    //   } else if(!activePrice.isBid && !isBid && (+otherFixedPrice < +fixedPrice) && +activePrice.volume > 0) {
+    //     console.warn(`Impossible ask in book at ${otherFixedPrice} with volume ${activePrice.volume}; There was just an ask filled at ${fixedPrice}.`);
+    //     // reduce the band's volume as well if it's visible
+    //     // const bandIx = getBandIndex(vizState, otherFixedPrice);
+    //     // if(bandIx >= 0 && bandIx < vizState.priceGranularity) {
+    //     //   let rawVolume = +vizState.activeBands[bandIx].volume - +activePrice.volume;
+    //     //   if(rawVolume < 0) {
+    //     //     rawVolume = 0;
+    //     //   }
+    //     //   vizState.activeBands[bandIx].volume = rawVolume.toFixed(vizState.pricePrecision);
+    //     // }
+    //     // activePrice.volume = '0';
+    //   }
+    // });
 
     vizState.trades.push(
       {timestamp: timestamp, volume: change.newTrade.amountTraded, isBid: isBid, price: fixedPrice}
     );
     renderTradeNotification(vizState, fixedPrice, change.newTrade.amountTraded, timestamp, isBid);
+  }
+
+  // extend the trade lines to the right if it's a price level modification
+  if(!change.newTrade) {
+    extendTradeLines(vizState, timestamp);
   }
 
   const price = +fixedPrice;
@@ -135,22 +136,41 @@ function renderUpdate(
   // if auto-zoom adjust is on and the trade is very close to being off the screen, adjust visible price levels
   if(!vizState.manualZoom && change.newTrade) {
     if(change.newTrade.price >= .995 * vizState.maxPrice) {
-      vizState.maxPrice = (vizState.maxPrice * 1.005).toFixed(vizState.pricePrecision);
+      vizState.maxPrice = (vizState.maxPrice * 1.003).toFixed(vizState.pricePrecision);
       console.log(`Setting max visible price to ${vizState.maxPrice} in response to a edge trade.`);
       return histRender(vizState, canvas);
     } else if(change.newTrade.price <= 1.005 * vizState.minPrice) {
-      vizState.minPrice = (vizState.minPrice * .995).toFixed(vizState.pricePrecision);
+      vizState.minPrice = (vizState.minPrice * .997).toFixed(vizState.pricePrecision);
       console.log(`Setting min visible price to ${vizState.minPrice} in response to a edge trade.`);
-      return histRender(vizState, canvas);
+      return histRender(vizState, canvas, true);
     }
   }
 
-  // if the band that's being updated is the current high-volume band,
-  // re-render the entire visualization with a different shading based on the new max volume
-  if(curBandIndex > 0 && curBandIndex < vizState.priceGranularity) {
-    if(vizState.activeBands[curBandIndex].volume === vizState.maxVisibleBandVolume) {
-      console.log('New max band value; re-rendering...');
-      return histRender(vizState, canvas);
+  if(curBandIndex >= 0 && curBandIndex < vizState.priceGranularity) {
+    const newVolume = +vizState.activeBands[curBandIndex].volume + volumeDiff;
+
+    // if the current max band volume changed, add that update to the list of updates
+    if(vizState.activeBands[curBandIndex].volume == vizState.latestMaxVolumeChange) {
+      if(volumeDiff !== 0) {
+        // update the active band volume change
+        console.log(`Current max band volume set to ${newVolume}`);
+        vizState.latestMaxVolumeChange = newVolume.toFixed(vizState.pricePrecision);
+        vizState.maxBandVolumeChanges.push({
+          timestamp: timestamp,
+          volume: newVolume.toFixed(vizState.pricePrecision),
+        });
+      }
+
+      // if we broke the max visible value record, re-render the entire viz with a different shading based on the new max volume
+      if(newVolume > +vizState.maxVisibleBandVolume) {
+        console.log(`Max visible band volume set to ${newVolume}`);
+        vizState.maxVisibleBandVolume = newVolume.toFixed(vizState.pricePrecision);
+        vizState.scaleColor = chroma.scale(vizState.colorScheme).mode('lch').domain([0, newVolume]);
+
+        console.log('New max band value; re-rendering...');
+        histRender(vizState, canvas);
+        return console.log(`Max volume after histRender: ${vizState.maxVisibleBandVolume}`)
+      }
     }
   }
 
@@ -173,11 +193,11 @@ function renderUpdate(
   activeBand.startTimestamp = timestamp;
 
   // update the volume level and end timestamp of the band to reflect this modification
-  const rawVolume = +activeBand.volume + +volumeDiff;
+  const rawVolume = +activeBand.volume + volumeDiff;
   activeBand.volume = rawVolume.toFixed(vizState.pricePrecision);
   if(activeBand.volume < 0) {
     activeBand.volume = 0;
-    console.warn(`sub-zero new band volume at band leve ${curBandIndex}`);
+    console.warn(`sub-zero new band volume at band level ${curBandIndex}`);
   }
   activeBand.endTimestamp = timestamp;
 
@@ -219,11 +239,9 @@ function renderUpdate(
  * Draws all active bands on the visualization.
  */
 function drawBands(vizState, curTimestamp, canvas) {
-  const {activeBands, priceGranularity} = vizState;
-
   // draw all the active bands and add a small bit of extra time at the right side so new bands are immediately visible
   const ctx = canvas.getContext('2d');
-  _.each(activeBands, (band: BandDef, i: number) => {
+  _.each(vizState.activeBands, (band: BandDef, i: number) => {
     band.endTimestamp = curTimestamp;
     if(band.volume !== 0) {
       // render the band, subtracting the index from the total number of bands because the coordinates are reversed on the canvas
@@ -244,7 +262,7 @@ function drawBand(vizState, band: {startTimestamp: number, endTimestamp: number}
   const topLeftCoords = gpp(vizState, band.startTimestamp, highPrice);
   const bottomRightCoords = gpp(vizState, band.endTimestamp, lowPrice);
 
-  ctx.fillStyle = getBandColor(band, vizState.maxVisibleBandVolume);
+  ctx.fillStyle = getBandColor(band, vizState.maxVisibleBandVolume, vizState.scaleColor);
   ctx.fillRect(Math.floor(topLeftCoords.x), Math.ceil(topLeftCoords.y), Math.ceil(bottomRightCoords.x - topLeftCoords.x), bottomRightCoords.y - topLeftCoords.y);
 }
 
@@ -252,15 +270,11 @@ function drawBand(vizState, band: {startTimestamp: number, endTimestamp: number}
  * Given a band's density, the maximum visible density on the visualization, and the visualization's style settings,
  * determines the background color of a volume band and returns it.
  */
-function getBandColor(band, maxVisibleVolume: string/* TODO: include viz color settings */) {
-  // TODO
-  // const colorScheme = ['#141414', 'F39'];
-  const colorScheme = ['#141414', '#7cbeff'];
-  const scale = chroma.scale(colorScheme).mode('lch').domain([0, +maxVisibleVolume]);
+function getBandColor(band, maxVisibleVolume: string, scaleColor) {
   if(+band.volume > +maxVisibleVolume) {
-    // console.warn(`Received band with volume of ${band.volume} which is greater than supplied max band volume of ${maxVisibleVolume}`);
+    console.warn(`Received band with volume of ${band.volume} which is greater than supplied max band volume of ${maxVisibleVolume}`);
   }
-  return scale(+band.volume).hex();
+  return scaleColor(+band.volume).hex();
 }
 
 export { renderInitial, renderUpdate, drawBand, drawBands };

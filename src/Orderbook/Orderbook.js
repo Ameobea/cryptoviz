@@ -4,6 +4,7 @@
 import React from 'react';
 const _ = require('lodash');
 import paper from 'paper';
+const chroma = require('chroma-js');
 
 import { ChangeShape } from '../util';
 import { getMaxVisibleBandVolume, getInitialBandValues, getTopOfBook } from '../calc';
@@ -20,9 +21,10 @@ class Orderbook extends React.Component {
       maxTimestamp: null,
       minPrice: null,
       maxPrice: null,
-      priceGranularity: 100, // the number of destinct price levels to mark on the visualization
+      priceGranularity: 50, // the number of destinct price levels to mark on the visualization
       timeGranuality: 1000, // the min number of ms that can exist as a distinct unit
-      maxVisibleBandVolume: null,
+      maxVisibleBandVolume: null, // the max level a band has ever been at in the current zoom
+      latestMaxVolumeChange: null, // the maximum band volume level at the latest price update
       manualZoom: false, // if true, then we shouldn't re-adjust the zoom level
       // duplicated settings from props
       canvasHeight: props.canvasHeight,
@@ -36,6 +38,9 @@ class Orderbook extends React.Component {
       activePrices: null, // { [key: number]: BandDef }
       priceLevelUpdates: [], // Array<{price: number, volume: number, timestamp: number, isBid: boolean}>
       trades: [], // Array<{timestamp: number, price: number, amountTraded: number}>
+      maxBandVolumeChanges: [], // every time the max visible band volume changes, it's recorded here.
+      askTradeLineExtended: false,
+      bidTradeLineExtended: false,
       // bestBid: null,
       // bestBidChanges: [],
       // bestAsk: null,
@@ -53,6 +58,13 @@ class Orderbook extends React.Component {
     this.vizState.maxVisibleBandVolume = getMaxVisibleBandVolume(
       this.vizState, this.props.curBook, this.props.minPrice, this.props.maxPrice, this.vizState.priceGranularity, this.vizState.pricePrecision
     );
+    this.vizState.latestMaxVolumeChange = this.vizState.maxVisibleBandVolume;
+    console.log(`Starting max band value: ${this.vizState.maxVisibleBandVolume}`);
+
+    // calculate color scheme and set up chroma.js color scale function
+    const colorScheme = ['#141414', '#7cbeff'];
+    this.vizState.colorScheme = colorScheme;
+    this.vizState.scaleColor = chroma.scale(colorScheme).mode('lch').domain([0, +this.vizState.maxVisibleBandVolume]);
 
     // populate the active prices from the initial book image
     const activePrices = {};
@@ -112,12 +124,12 @@ class Orderbook extends React.Component {
 
   render() {
     return (
-      <div id='obWrapper' style={{width: this.props.canvasWidth}}>
+      <div id='obWrapper' style={{width: '100%'}}>
         <canvas
           height={this.props.canvasHeight}
           id='nativeCanvas'
           ref={function(canvas){this.nativeCanvas = canvas;}.bind(this)}
-          style={{ marginRight: -this.props.canvasWidth - 2, width: this.props.canvasWidth}}
+          style={{ marginRight: '-100%', width: this.props.canvasWidth}}
           width={this.props.canvasWidth}
         />
 
@@ -125,7 +137,7 @@ class Orderbook extends React.Component {
           height={this.props.canvasHeight}
           id='paperCanvas'
           ref={function(canvas){this.paperCanvas = canvas;}.bind(this)}
-          style={{ marginRight: -2 }}
+          style={{ marginLeft: '-100%' }}
           width={this.props.canvasWidth}
         />
       </div>
@@ -139,8 +151,8 @@ Orderbook.propTypes = {
   change: React.PropTypes.shape(ChangeShape).isRequired,
   curBook: React.PropTypes.object.isRequired,
   initialTimestamp: React.PropTypes.number.isRequired,
-  maxPrice: React.PropTypes.number.isRequired,
-  minPrice: React.PropTypes.number.isRequired,
+  maxPrice: React.PropTypes.string.isRequired,
+  minPrice: React.PropTypes.string.isRequired,
   pricePrecision: React.PropTypes.number.isRequired,
 };
 
