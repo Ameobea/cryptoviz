@@ -56,8 +56,8 @@ DepthChart.propTypes = {
   canvasWidth: React.PropTypes.number,
   change: React.PropTypes.shape(ChangeShape),
   initialBook: React.PropTypes.arrayOf(React.PropTypes.shape({
-    price: React.PropTypes.number.isRequired,
-    volume: React.PropTypes.number.isRequired
+    price: React.PropTypes.string.isRequired,
+    volume: React.PropTypes.string.isRequired
   })).isRequired,
 };
 

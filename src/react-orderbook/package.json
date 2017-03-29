@@ -14,6 +14,7 @@
   "dependencies": {
     "chroma-js": "1.2.2",
     "lodash": "4.17.4",
+    "paper": "0.10.3",
     "react": "^15.4.2",
     "react-dom": "^15.4.2",
     "react-faux-dom": "3.0.1"
@@ -31,7 +32,7 @@
     "nodemon": "*"
   },
   "scripts": {
-    "compile": "babel --presets es2015,stage-3 -d lib/ src/",
+    "compile": "babel --presets es2015,stage-3 -D -d lib/ src/",
     "prepublish": "npm run compile",
     "watch": "nodemon --watch src --exec 'npm run compile'"
   },
