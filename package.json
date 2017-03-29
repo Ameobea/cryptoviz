@@ -10,9 +10,11 @@
   },
   "dependencies": {
     "babel-runtime": "^6.9.2",
+    "chroma-js": "1.2.2",
     "dva": "^1.2.1",
     "dva-loading": "^0.2.0",
     "lodash": "4.17.4",
+    "paper": "0.10.3",
     "react": "^15.4.0",
     "react-dom": "^15.4.0"
   },

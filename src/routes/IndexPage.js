@@ -4,7 +4,7 @@ import React from 'react';
 import fetch from 'dva/fetch';
 const _ = require('lodash');
 
-import OrderbookVisualizer from 'react-orderbook';
+import OrderbookVisualizer from '../react-orderbook/index'
 
 class IndexPage extends React.Component {
   constructor(props){
