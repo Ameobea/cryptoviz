@@ -17,7 +17,7 @@ canvas {
   border: 1px solid #ccc;
   display: inline;
   float: left;
-  margin-right:-250px;
+  margin-right:-100%;
   background-color: rgba(0, 0, 0, 0);
 }
 

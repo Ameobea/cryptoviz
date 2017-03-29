@@ -6,36 +6,6 @@ const _ = require('lodash');
 
 import OrderbookVisualizer from 'react-orderbook';
 
-type OrderBookMessage = {
-  data: {type: string, rate: string, amount: ?string, tradeID: ?string, date: ?string, total: ?string},
-  type: string, timestamp: number
-};
-
-function handleBookEvent(
-  arg: OrderBookMessage, modificationCallback, removalCallback, newTradeCallback
-) {
-  if(arg.type == 'orderBookModify') {
-    modificationCallback({timestamp: _.now(), modification: {
-      price: arg.data.rate,
-      newAmount: arg.data.amount,
-      isBid: arg.data.type == 'bid' ? true : false,
-    }});
-  } else if(arg.type == 'orderBookRemove') {
-    removalCallback({timestamp: _.now(), removal: {
-      price: arg.data.rate,
-      isBid: arg.data.type == 'bid' ? true : false,
-    }});
-  } else if(arg.type == 'newTrade') {
-    newTradeCallback({timestamp: _.now(), newTrade: {
-      price: arg.data.rate,
-      wasBidFilled: arg.data.type == 'buy' ? false : true,
-      amountTraded: arg.data.amount,
-    }});
-  } else {
-    console.log(`Received invalid type on message from Poloniex: ${JSON.stringify(arg)}`);
-  }
-}
-
 class IndexPage extends React.Component {
   constructor(props){
     super(props);
@@ -119,50 +89,110 @@ class IndexPage extends React.Component {
     };
     handleConnOpen = handleConnOpen.bind(this);
 
+    let processBookUpdate = update => {
+      // console.log(update);
+      if(update[0] == 'o') {
+        // update is an orderbook update, so either execute the modification or removal callback
+        if(update[3] === '0.00000000') {
+          // is a removal
+          this.removalCallback({timestamp: _.now(), removal: {
+            price: update[2],
+            isBid: !!update[1],
+          }});
+        } else {
+          // is a modification
+          this.modificationCallback({timestamp: _.now(), modification: {
+            price: update[2],
+            newAmount: update[3],
+            isBid: !!update[1],
+          }});
+        }
+      } else if(update[0] == 't') {
+        // update is a new trade
+        this.newTradeCallback({
+          timestamp: _.now(), newTrade: {
+            price: update[3],
+            amountTraded: update[4],
+            wasBidFilled: !!update[2],
+          }
+        });
+      } else {
+        console.warn(`Received unhandled update type: ${JSON.stringify(update)}`);
+      }
+    };
+    processBookUpdate = processBookUpdate.bind(this);
+
     // function for parsing the messages received from the websocket connection and sending their data to where it needs to go
     let handleWsMsg = e => {
       if (e.data.length === 0)
         return;
 
       var msg = JSON.parse(e.data);
-      console.log(msg);
+      // console.log(msg);
       if (msg[1] === 1)
         return e.target.subscriptions[msg[0]] = true;
 
       switch(msg[0]) {
+      // message is an orderbook update
+      case this.currencyChannel:
+        // make sure that this order is in sequence
+        var seq = msg[1];
+        if(seq === this.lastSeq + 1) {
+          // message is properly sequenced and we should process it
+          this.lastSeq = seq;
+          // process each of the individual updates in this message
+          this.lastUpdate = msg;
+          // console.log(msg[2]);
+          _.each(msg[2], processBookUpdate);
+          // if there's a buffer to process, drain it until we encounter another gap or fully empty it
+          while(this.buffer[seq + 1]) {
+            // process all of the contained updates in the buffered message
+            _.each(this.buffer[seq + 1][2], update => {
+              console.log(`Processing buffered update with seq ${seq + 1}`);
+              processBookUpdate(update);
+            });
+            seq += 1;
+          }
+          this.buffer = [];
+        }
+        else if(seq === this.lastSeq) {
+          // is probably a duplicate or a heartbeat message, but make sure
+          if(this.lastUpdate && !_.isEqual(this.lastUpdate, msg)) {
+            console.error(
+              `Same sequence number but different messages: ${JSON.stringify(this.lastUpdate)} != ${JSON.stringify(msg)}`
+            );
+          }
+        } else if(seq < this.lastSeq) {
+          console.error(`sequence number ${seq} was less than we expected and we don't have a buffer for it`);
+        } else if(seq > this.lastSeq + 1) {
+          if(this.lastSeq + 10 < seq) {
+            // there's still a chance we may still eventually receive the out-of-order message, so wait for it
+            console.log(`Received out-or-sequence message with seq ${seq} (expected ${this.lastSeq + 1}); buffering it.`);
+            this.buffer[seq] = msg;
+          } else {
+            console.error('Lost message.'); // TODO
+          }
+        }
+        this.lastUpdate = msg;
+        break;
+
       default:
         if(msg[0] > 0 && msg[0] < 1000){
           if(msg[2][0][0] == 'i'){
             const orderbook = msg[2][0][1];
-            console.log(orderbook);
-
             if (orderbook.currencyPair != this.currency){
-              console.error(`Expected symbol ${this.currency} but received data for ${marketInfo.currencyPair}`);
-              break;
+              console.error(`Expected symbol ${this.currency} but received data for ${orderbook.currencyPair}`);
+            } else {
+              this.currencyChannel = msg[0];
+              // console.log(orderbook);
+              // TODO: handle orderbook and send to components
+              this.lastSeq = msg[1];
             }
-
-            seq = msg[1];
+            break;
           }
         }
         break;
       }
-      // if(kwargs.seq === lastSeq + 1) {
-      //   lastSeq += 1;
-      // } else if(lastSeq === 0) {
-      //   lastSeq = kwargs.seq;
-      // } else if(lastSeq === kwargs.seq) {
-      //   // duplicate sequence number; probably just heartbeat.  Ignore it.
-      // }
-      // const {modificationCallback, removalCallback, newTradeCallback} = pointer;
-      // cache.push({args: args, seq: kwargs.seq});
-
-      // _.each(_.sortBy(realArgs.args), arg => {
-      //   try {
-      //     handleBookEvent(arg, modificationCallback, removalCallback, newTradeCallback);
-      //   } catch(e) {
-      //     console.error(e.stack);
-      //   }
-      // });
     };
     handleWsMsg = handleWsMsg.bind(this);
 
@@ -185,10 +215,9 @@ class IndexPage extends React.Component {
       this.connection = new WebSocket('wss://api2.poloniex.com');
       this.connection['subscriptions'] = {};
       this.connection.onopen = handleConnOpen(currency);
-      this.cache = [];
       this.lastSeq = 0;
+      this.buffer = [];
       this.connection.onmessage = handleWsMsg;
-      this.connection.open();
     };
     initCurrency = initCurrency.bind(this);
 
@@ -203,9 +232,9 @@ class IndexPage extends React.Component {
     this.newTradeExecutor = this.newTradeExecutor.bind(this);
 
     // set up noop functions for the callbacks until the proper ones are sent over from the inner visualization
-    this.modificationCallback = () => {};
-    this.removalCallback = () => {};
-    this.newTradeCallback = () => {};
+    this.modificationCallback = () => {console.warn('Dummy modification callback called!');};
+    this.removalCallback = () => {console.warn('Dummy removal callback called!');};
+    this.newTradeCallback = () => {console.warn('Dummy newTrade callback called!');};
 
     this.state = {
       currencies: {},
