@@ -180,14 +180,26 @@ function getBandIndex(
   // price range between the bottom and top of each band
   const bandPriceSpan = (+vizState.maxPrice - +vizState.minPrice) / vizState.priceGranularity;
 
-  if(price === vizState.maxPrice) {
+  if(price == vizState.maxPrice) {
     return vizState.priceGranularity - 1;
   } else {
     return Math.floor((+price - +vizState.minPrice) / bandPriceSpan);
   }
 }
 
+function getTimestampFromPixel(vizState, x) {
+  const timeRange = +vizState.maxTimestamp - +vizState.minTimestamp;
+  return ((x / vizState.canvasWidth) * timeRange) + +vizState.minTimestamp;
+}
+
+function getPriceFromPixel(vizState, y) {
+  const priceRange = +vizState.maxPrice - +vizState.minPrice;
+  const percent = 1 - (y / vizState.canvasHeight);
+  return (percent * priceRange) + +vizState.minPrice;
+}
+
 export {
   getPixelPosition, gpp, getPricesFromBook, getInitialPriceRange, getInitialBandValues,
-  getTopOfBook, getMaxVisibleBandVolume, getBandIndex, getPixelX, getPixelY
+  getTopOfBook, getMaxVisibleBandVolume, getBandIndex, getPixelX, getPixelY, getPriceFromPixel,
+  getTimestampFromPixel
 };

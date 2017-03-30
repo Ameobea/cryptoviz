@@ -6,7 +6,7 @@ const chroma = require('chroma-js');
 
 import { gpp, getBandIndex } from '../calc';
 import { histRender } from './histRender';
-import { renderOrderNotification, renderTradeNotification, extendTradeLines } from './paperRender';
+import { renderOrderNotification, renderTradeNotification, extendTradeLines, updateTextInfo } from './paperRender';
 
 type Orderbook = { [price: number]: {volume: number, isBid: boolean} };
 type BandDef = {startTimestamp: number, endTimestamp: number, volume: number, isBid: ?boolean};
@@ -112,6 +112,9 @@ function renderUpdate(
   if(!change.newTrade) {
     extendTradeLines(vizState, timestamp);
   }
+
+  // update displayed price information
+  updateTextInfo(vizState);
 
   const price = +fixedPrice;
 

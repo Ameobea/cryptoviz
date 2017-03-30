@@ -35,6 +35,7 @@ class OrderbookVisualizer extends React.Component {
     this.handleBookModification = this.handleBookModification.bind(this);
     this.handleBookRemoval = this.handleBookRemoval.bind(this);
     this.handleNewTrade = this.handleNewTrade.bind(this);
+    this.handleCurrencyChange = this.handleCurrencyChange.bind(this);
 
     const prices = _.map(this.props.initialBook, 'price');
     const values = _.map(this.props.initialBook, level => { return {volume: level.volume, isBid: level.isBid}; });
@@ -42,7 +43,7 @@ class OrderbookVisualizer extends React.Component {
       // map the array of objects to a K:V object matching price:volume at that price level
       curBook: _.zipObject(prices, values), // the latest version of the order book containing all live buy/sell limit orders
       latestChange: {}, // the most recent change that has occured in the orderbook
-      initialBook: this.props.initialBook,
+      initialBook: _.zipObject(prices, values),
       initialTimestamp: this.props.initialTimestamp,
       curTimestamp: this.props.initialTimestamp,
     };
@@ -55,27 +56,29 @@ class OrderbookVisualizer extends React.Component {
     this.props.newTradeCallbackExecutor(this.handleNewTrade);
   }
 
-  shouldComponentRender(nextProps) {
-    // TODO: Change so that it re-renders if any of the component heights or widths change
-    return false;
+  componentWillReceiveProps(nextProps) {
+    if(!_.isEqual(nextProps.initialBook, this.props.initialBook)) {
+      // currency has changed; reset all internal state and re-initialize component
+      const prices = _.map(nextProps.initialBook, 'price');
+      const values = _.map(nextProps.initialBook, level => { return {volume: level.volume, isBid: level.isBid}; });
+      this.setState({initialBook: _.zipObject(prices, values)});
+    }
   }
 
   handleBookModification(change: {modification: {price: number, newAmount: number, isBid: boolean}, timestamp: number}) {
-    // const curBook = this.state.curBook;
-    // curBook[change.modification.price] = {volume: change.modification.newAmount, isBid: change.modification.isBid};
-    // this.state.curBook = curBook;
-    // console.log(change);
     this.setState({latestChange: change});
   }
 
   handleBookRemoval(change: {removal: {price: number, isBid: boolean}, timestamp: number}) {
     this.setState({latestChange: change});
-    // TODO
   }
 
   handleNewTrade(change: { newTrade: {price: number, amountRemaining: number, wasBidFilled: boolean}, timestamp: number}) {
     this.setState({latestChange: change});
-    // TODO
+  }
+
+  handleCurrencyChange(newCurrency) {
+    this.props.onCurrencyChange(newCurrency);
   }
 
   render() {
@@ -85,10 +88,12 @@ class OrderbookVisualizer extends React.Component {
           canvasHeight={this.props.orderbookCanvasHeight}
           canvasWidth={this.props.orderbookCanvasWidth}
           change={this.state.latestChange}
-          curBook={this.state.curBook}
+          initialBook={this.state.initialBook}
+          currencies={this.props.currencies}
           initialTimestamp={this.props.initialTimestamp}
           maxPrice={this.props.maxPrice}
           minPrice={this.props.minPrice}
+          onCurrencyChange={this.handleCurrencyChange}
           pricePrecision={this.props.pricePrecision}
         />
       </div>
@@ -109,13 +114,20 @@ OrderbookVisualizer.propTypes = {
   maxPrice: React.PropTypes.string.isRequired,
   minPrice: React.PropTypes.string.isRequired,
   newTradeCallbackExecutor: React.PropTypes.func.isRequired,
+  onCurrencyChange: React.PropTypes.func.isRequired,
   orderbookCanvasHeight: React.PropTypes.number,
   orderbookCanvasWidth: React.PropTypes.number,
   pricePrecision: React.PropTypes.number.isRequired
 };
 
+var body = document.body,
+    html = document.documentElement;
+
+var height = Math.max(body.scrollHeight, body.offsetHeight,
+    html.clientHeight, html.scrollHeight, html.offsetHeight);
+
 OrderbookVisualizer.defaultProps = {
-  orderbookCanvasHeight: .9 * document.body.scrollHeight,
+  orderbookCanvasHeight: .89 * height,
   orderbookCanvasWidth: document.getElementsByTagName('body')[0].offsetWidth,
   depthChartCanvasHeight: 600,
   depthChartCanvasWidth: 900,

@@ -14,9 +14,11 @@
     "dva": "^1.2.1",
     "dva-loading": "^0.2.0",
     "lodash": "4.17.4",
+    "material-ui": "0.17.1",
     "paper": "0.10.3",
     "react": "^15.4.0",
-    "react-dom": "^15.4.0"
+    "react-dom": "^15.4.0",
+    "react-tap-event-plugin": "*"
   },
   "devDependencies": {
     "babel-cli": "*",

@@ -6,7 +6,7 @@ const chroma = require('chroma-js');
 
 import { getInitialBandValues, getBandIndex, getMaxVisibleBandVolume } from '../calc';
 import { renderInitial, drawBand, drawBands } from './render';
-import { reRenderTrades } from './paperRender';
+import { reRenderTrades, updateTextInfo } from './paperRender';
 
 /**
  * Given a set of historical price level updates and trade data as well as the settings for the visualization's current
@@ -35,56 +35,56 @@ function histRender(vizState, canvas, recalcMaxBandValues) {
   vizState.activeBands = initialBandValues;
 
   // if a setting has changed causing us to need to re-calculate max band values, do so.
-  if(false) {
-    // first get the id of the band with the highest starting volume
-    let initialMaxBandIndex = 0;
-    let curMaxBandValue = 0;
-    for(var i=0; i<vizState.activeBands.length; i++) {
-      if(+vizState.activeBands[i].volume > curMaxBandValue) {
-        curMaxBandValue = vizState.activeBands[i].volume;
-        initialMaxBandIndex = i;
-      }
-    }
+  // if(false) {
+  //   // first get the id of the band with the highest starting volume
+  //   let initialMaxBandIndex = 0;
+  //   let curMaxBandValue = 0;
+  //   for(var i=0; i<vizState.activeBands.length; i++) {
+  //     if(+vizState.activeBands[i].volume > curMaxBandValue) {
+  //       curMaxBandValue = vizState.activeBands[i].volume;
+  //       initialMaxBandIndex = i;
+  //     }
+  //   }
 
-    // and create a variable to hold the max band volume of the current simulated price update
-    let maxVisibleBandVolume = curMaxBandValue;
-    vizState.maxBandVolumeChanges = [{
-      timestamp: vizState.priceLevelUpdates[initialMaxBandIndex].timestamp,
-      volume: curMaxBandValue
-    }];
+  //   // and create a variable to hold the max band volume of the current simulated price update
+  //   let maxVisibleBandVolume = curMaxBandValue;
+  //   vizState.maxBandVolumeChanges = [{
+  //     timestamp: vizState.priceLevelUpdates[initialMaxBandIndex].timestamp,
+  //     volume: curMaxBandValue
+  //   }];
 
-    _.each(vizState.priceLevelUpdates, ({price, volume, timestamp, isBid}) => {
-      const volumeDiff = curPriceLevels[price] ? +volume - +curPriceLevels[price].volume : +volume;
-      const bandIndex = getBandIndex(vizState, price);
-      if(bandIndex >= 0 && bandIndex < vizState.priceGranularity) {
-        const activeBand = vizState.activeBands[bandIndex];
-        const rawVolume = +activeBand.volume + volumeDiff;
-        const fixedVolume = rawVolume.toFixed(vizState.pricePrecision);
-        activeBand.volume = fixedVolume;
+  //   _.each(vizState.priceLevelUpdates, ({price, volume, timestamp, isBid}) => {
+  //     const volumeDiff = curPriceLevels[price] ? +volume - +curPriceLevels[price].volume : +volume;
+  //     const bandIndex = getBandIndex(vizState, price);
+  //     if(bandIndex >= 0 && bandIndex < vizState.priceGranularity) {
+  //       const activeBand = vizState.activeBands[bandIndex];
+  //       const rawVolume = +activeBand.volume + volumeDiff;
+  //       const fixedVolume = rawVolume.toFixed(vizState.pricePrecision);
+  //       activeBand.volume = fixedVolume;
 
-        // if this band update changes the current record, update it and add the change to `maxBandVolumeChanges` for the future
-        if(rawVolume > curMaxBandValue) {
-          curMaxBandValue = rawVolume;
-          vizState.maxBandVolumeChanges.push({timestamp: timestamp, volume: fixedVolume});
-        }
+  //       // if this band update changes the current record, update it and add the change to `maxBandVolumeChanges` for the future
+  //       if(rawVolume > curMaxBandValue) {
+  //         curMaxBandValue = rawVolume;
+  //         vizState.maxBandVolumeChanges.push({timestamp: timestamp, volume: fixedVolume});
+  //       }
 
-        // if it broke the max visible volume record, update that as well.
-        if(rawVolume > maxVisibleBandVolume) {
-          maxVisibleBandVolume = fixedVolume;
-        }
-      }
-    });
+  //       // if it broke the max visible volume record, update that as well.
+  //       if(rawVolume > maxVisibleBandVolume) {
+  //         maxVisibleBandVolume = fixedVolume;
+  //       }
+  //     }
+  //   });
 
-    // set both the current and max visible band volumes to vizState
-    vizState.maxVisibleBandVolume = maxVisibleBandVolume;
-    vizState.latestMaxVolumeChange = curMaxBandValue;
+  //   // set both the current and max visible band volumes to vizState
+  //   vizState.maxVisibleBandVolume = maxVisibleBandVolume;
+  //   vizState.latestMaxVolumeChange = curMaxBandValue;
 
-    // generate a new color scaler function
-    vizState.scaleColor = chroma.scale(vizState.colorScheme).mode('lch').domain([0, +maxVisibleBandVolume]);
+  //   // generate a new color scaler function
+  //   vizState.scaleColor = chroma.scale(vizState.colorScheme).mode('lch').domain([0, +maxVisibleBandVolume]);
 
-    // reset the active band values before continuing with normal hist render
-    vizState.activeBands = initialBandValues;
-  }
+  //   // reset the active band values before continuing with normal hist render
+  //   vizState.activeBands = initialBandValues;
+  // }
 
   // loop through all of the visible price updates, drawing bands and updating the book as we go
   let curTimestamp;
@@ -122,6 +122,9 @@ function histRender(vizState, canvas, recalcMaxBandValues) {
 
   // update the postions of the trade markers
   reRenderTrades(vizState);
+
+  // update displayed price information
+  updateTextInfo(vizState);
 
   // finally, draw all the bands to be updated with the most recent prices
   drawBands(vizState, curTimestamp, canvas);

@@ -2,7 +2,7 @@
 
 const _ = require('lodash');
 
-import { gpp, getPixelX, getPixelY } from '../calc';
+import { gpp, getPixelX, getPixelY, getTimestampFromPixel, getPriceFromPixel, getBandIndex } from '../calc';
 import { histRender } from './histRender';
 
 /**
@@ -38,9 +38,11 @@ function getTradeNotifications(paperscope) {
  * Sets up some initial state for the paper canvas.
  */
 function initPaperCanvas(vizState) {
+  const { Color, Path, Point, PointText } = vizState.paperscope;
+
   vizState.paperscope.activate();
   // create two paths that will draw price lines
-  const bidTradeLine = new vizState.paperscope.Path({
+  const bidTradeLine = new Path({
     segments: [],
     selected: false,
   });
@@ -48,7 +50,7 @@ function initPaperCanvas(vizState) {
   bidTradeLine.strokeColor = 'blue'; // TODO: Make config option
   bidTradeLine.data.pointMeta = []; // create a space to hold price/timestamp data of trades to be used for re-scaling
 
-  const askTradeLine = new vizState.paperscope.Path({
+  const askTradeLine = new Path({
     segments: [],
     selected: false,
   });
@@ -56,7 +58,69 @@ function initPaperCanvas(vizState) {
   askTradeLine.strokeColor = 'red'; // TODO: Make config option
   askTradeLine.data.pointMeta = []; // create a space to hold price/timestamp data of trades to be used for re-scaling
 
-  // vizState.paperscope.view.draw();
+  // set up a crosshair to show currently hovered price/timestamp and display information about it
+  const verticalCrosshair = new Path({
+    name: 'verticalCrosshair',
+    segments: [new Point(0, 0), new Point(0, vizState.canvasHeight)],
+    strokeColor: new Color(0, 188, 212, 0.22),
+    strokeWidth: 0.5,
+  });
+  const horizontalCrosshair = new Path({
+    name: 'horizontalCrosshair',
+    segments: [new Point(0, 0), new Point(vizState.canvasWidth, 0)],
+    strokeColor: new Color(0, 188, 212, 0.22),
+    strokeWidth: 0.5,
+  });
+
+  // create area to display currently hovered price, timestamp, and volume
+  const timestampText = new PointText(new Point(vizState.canvasWidth - 150, 10));
+  timestampText.fillColor = vizState.textColor;
+  timestampText.name = 'timestampText';
+  timestampText.fontSize = '12px';
+  const priceRangeText = new PointText(new Point(vizState.canvasWidth - 150, 25));
+  priceRangeText.fillColor = vizState.textColor;
+  priceRangeText.name = 'priceRangeText';
+  priceRangeText.fontSize = '12px';
+  const curVolumeText = new PointText(new Point(vizState.canvasWidth - 150, 40));
+  curVolumeText.fillColor = vizState.textColor;
+  curVolumeText.name = 'curVolumeText';
+  curVolumeText.fontSize = '12px';
+
+  // set up mouse movement listener to move crosshair and update data
+  vizState.paperscope.project.view.onMouseMove = e => {
+    const {x, y} = e.point;
+    vizState.hoveredX = x;
+    vizState.hoveredY = y;
+    updateTextInfo(vizState);
+  };
+}
+
+/**
+ * Updates the displayed price, timestamp, and volume information in the top-right corner of the visualization
+ */
+function updateTextInfo(vizState) {
+  const x = vizState.hoveredX;
+  const y = vizState.hoveredY;
+  const timestamp = getTimestampFromPixel(vizState, x);
+  const price = getPriceFromPixel(vizState, y);
+
+  // update crosshair data
+  const verticalSegments = vizState.paperscope.project.activeLayer.children['verticalCrosshair'].segments;
+  verticalSegments[0].point.x = x;
+  verticalSegments[1].point.x = x;
+
+  const horizontalSegments = vizState.paperscope.project.activeLayer.children['horizontalCrosshair'].segments;
+  horizontalSegments[0].point.y = y;
+  horizontalSegments[1].point.y = y;
+
+  // update text fields
+  vizState.paperscope.project.activeLayer.children['timestampText'].content = new Date(timestamp).toString().split(' ')[4];
+  const bandPriceSpan = (+vizState.maxPrice - +vizState.minPrice) / vizState.priceGranularity;
+  const hoveredBandIndex = getBandIndex(vizState, price);
+  const bandBottomPrice = +vizState.minPrice + (bandPriceSpan * hoveredBandIndex);
+  const bandTopPrice = bandBottomPrice + bandPriceSpan;
+  vizState.paperscope.project.activeLayer.children['priceRangeText'].content = `${bandBottomPrice.toFixed(8)} - ${bandTopPrice.toFixed(8)}`;
+  vizState.paperscope.project.activeLayer.children['curVolumeText'].content = vizState.activeBands[hoveredBandIndex].volume;
 }
 
 /**
@@ -191,5 +255,5 @@ function renderNewBestPrice(vizState) {
 
 export {
   renderScales, renderNewTrade, renderOrderNotification, renderTradeNotification, renderNewBestPrice, reRenderTrades,
-  initPaperCanvas, extendTradeLines
+  initPaperCanvas, extendTradeLines, updateTextInfo
 };
