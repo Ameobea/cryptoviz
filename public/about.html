@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About CryptoViz</title>
+<link href="https://fonts.googleapis.com/css?family=Teko" rel="stylesheet">
+<style>
+    body {
+        background-color: #080808;
+        color: #ABABAB;
+        margin: 0;
+        font-family: 'Teko', sans-serif;
+        font-size: 14pt;
+    }
+
+    a {
+        color: #333392;
+    }
+
+    p {
+        line-height: 112%;
+        margin-top: 1px;
+    }
+
+    h1 {
+        text-align: center;
+    }
+
+    h3, h2 {
+        margin-bottom: 2px;
+    }
+
+    #container {
+        width: 80%;
+        margin: 0 auto;
+    }
+</style>
+</head>
+<body>
+<div id='container'>
+<h1>Using CryptoViz</h1>
+    <p>CryptoViz is a tool that allows you to visualize the orderbook for all the cryptocurrencies traded on the <a href='https://poloniex.com'>Poloniex</a> exchange.  It allows you to see where buy and sell orders lie, how large they are, and when they get removed/filled.  It enables you to clearly see thing such as buy and sell walls, large orders sweeping the book, and support/resistance levels where large amounts of volume are traded.</p>
+
+    <h3>Price Bands</h3>
+    <p>The price bands are the horizontal lines spanning the visualization.  They are scaled in color according to how much volume is currently in orders at that level.  To see what prices a band contains, hover over it with your mouse and look in the top right of the visualization.</p>
+    <center><img src='https://ameo.link/u/46b.png'></center>
+
+    <h3>Trade Lines and Indicators</h3>
+    <p>The red and blue lines and circles indicate trades that took place.  Red means that an existing buy order was filled and blue means that an existing sell order was filled.  The size of the circle corresponds to the amount of volume that was traded.  The lines connect trades of the same type, showing how the price people trade at changes over time.</p>
+    <center><img src='https://ameo.link/u/469.png'></center>
+
+    <h2>Interpreting the Data</h2>
+    <p>Using this tool, it's possible to draw conclusions about the behaviour of other traders in the market.  There are certain patterns that identify different trading actions and can give you clues about what the market may do in the future.</p>
+
+    <h3>Buy/Sell Walls</h3>
+    <p>When large blocks of buy or sell orders are grouped together at a price level, they can often act as support or resistance that the price bounces off of.  If the price approaches one of these walls and there is insufficient momentum to break through it, the price often drifts back in the direction it came from.  However, if there is sufficient momentum to fill the orders that make up the wall, it is common for prices to continue to move on through to new levels.  As shown in the image below, large buy orders are filled which break the walls and drive the price lower.</p>
+    <center><img src='https://ameo.link/u/467.png'></center>
+
+    <h3>Descending/Ascending Price Levels</h3>
+    <p>When traders (or trading robots) compete with each other to have the best price for their orders and so be filled first, it's common to see areas where the spread grows smaller as orders are cancelled and re-entered at a better price to undercut other traders.  This can be an indicator of a desire for traders to enter or exit the market and influence the price in the process.</p>
+    <center><img src='https://ameo.link/u/46a.png'></center>
+
+    <p>It's important to keep in mind that all of these patterns can be invalidated by one large set of orders.  These aren't as much indicators as they are hints at the mood of the market participants.  Although they can be useful in determining market sentiment, careful consideration should be taken before trading using them.</p>
+
+    <h2>Disclaimer</h2>
+    <p>This tool is not designed to be a trading strategy or to provide any trading advice or reccomendations.  Due to the nature of cryptocurrencies and trading in general, markets are very volatile and difficult to predict.  No data displayed by the visualization, written on this page, or relayed in any other manner through this tool should be construed as trading advice.  CryptoViz and CryptoViz's creators do not guarentee the accuracy, timliness, or precision of the data it displays.  We provide no warranty, make no promises, and only want to provide a tool you may find useful in understanding the cryptocurrency markets better.  If you have any questions about these terms or the tool, please contact me at <a href='mailto: me@ameo.link'>me@ameo.link</a>.</p>
+
+    <p>All data used in this visualization comes from the Poloniex exchange.  We do not make use of any data not publicly provided on the Poloniex website and do not claim to provide any advantage not available elsewhere.  I'd like to express a big thank-you to them for making their data freely available for things like this tool.</p>
+</div>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-96355247-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+</body>
+</html>

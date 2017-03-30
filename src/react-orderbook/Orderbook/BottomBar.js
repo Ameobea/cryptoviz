@@ -95,7 +95,7 @@ class BottomBar extends React.Component {
             </SelectField>
           </div></td>
 
-          <td width='50%'><div style={{paddingRight: '10px'}}>
+          <td width='40%'><div style={{paddingRight: '10px'}}>
             <p style={{marginBottom: '-25px'}}>{'Price Level Granularity'}</p>
             <Slider onChange={this.handleGranularitySelect} step={0.1} value={.5} />
           </div></td>
@@ -105,6 +105,8 @@ class BottomBar extends React.Component {
               {colorSchemeItems}
             </SelectField>
           </div></td>
+
+          <td><p style={{fontSize: '18px', marginTop: '-10px'}}><a target="_blank" href='./about.html'>How to Use</a></p></td>
         </tr></tbody></table>
 
         <p id='footer'>{
