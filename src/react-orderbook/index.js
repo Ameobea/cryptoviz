@@ -91,14 +91,6 @@ class OrderbookVisualizer extends React.Component {
           minPrice={this.props.minPrice}
           pricePrecision={this.props.pricePrecision}
         />
-
-        <DepthChart
-          canvasHeight={this.props.depthChartCanvasHeight}
-          canvasWidth={this.props.depthChartCanvasWidth}
-          change={this.state.latestChange}
-          initialBook={this.state.initialBook}
-          initialTimestamp={this.state.initialTimestamp}
-        />
       </div>
     );
   }
@@ -123,7 +115,7 @@ OrderbookVisualizer.propTypes = {
 };
 
 OrderbookVisualizer.defaultProps = {
-  orderbookCanvasHeight: 500,
+  orderbookCanvasHeight: .9 * document.body.scrollHeight,
   orderbookCanvasWidth: document.getElementsByTagName('body')[0].offsetWidth,
   depthChartCanvasHeight: 600,
   depthChartCanvasWidth: 900,

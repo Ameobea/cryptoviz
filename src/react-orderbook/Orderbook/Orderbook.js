@@ -10,6 +10,7 @@ import { ChangeShape } from '../util';
 import { getMaxVisibleBandVolume, getInitialBandValues, getTopOfBook } from '../calc';
 import { renderInitial, renderUpdate } from './render';
 import { initPaperCanvas } from './paperRender';
+import BottomBar from './BottomBar';
 
 class Orderbook extends React.Component {
   constructor(props) {
@@ -124,22 +125,26 @@ class Orderbook extends React.Component {
 
   render() {
     return (
-      <div id='obWrapper' style={{width: '100%'}}>
-        <canvas
-          height={this.props.canvasHeight}
-          id='nativeCanvas'
-          ref={function(canvas){this.nativeCanvas = canvas;}.bind(this)}
-          style={{ marginRight: '-100%', width: this.props.canvasWidth}}
-          width={this.props.canvasWidth}
-        />
+      <div>
+        <div id='obWrapper' style={{width: '100%'}}>
+          <canvas
+            height={this.props.canvasHeight}
+            id='nativeCanvas'
+            ref={function(canvas){this.nativeCanvas = canvas;}.bind(this)}
+            style={{ marginRight: '-100%', width: this.props.canvasWidth}}
+            width={this.props.canvasWidth}
+          />
 
-        <canvas
-          height={this.props.canvasHeight}
-          id='paperCanvas'
-          ref={function(canvas){this.paperCanvas = canvas;}.bind(this)}
-          style={{ marginLeft: '-100%' }}
-          width={this.props.canvasWidth}
-        />
+          <canvas
+            height={this.props.canvasHeight}
+            id='paperCanvas'
+            ref={function(canvas){this.paperCanvas = canvas;}.bind(this)}
+            style={{ marginLeft: '-100%' }}
+            width={this.props.canvasWidth}
+          />
+        </div>
+
+        <BottomBar vizState={this.vizState} onSettingChange={this.handleSettingChange} />
       </div>
     );
   }
