@@ -16,6 +16,10 @@ import BottomBar from './BottomBar';
 const colorSchemes = {
   'Blue Moon': ['#141414', '#7cbeff'],
   'Candy Floss': ['#141414', '#f53dff'],
+  'Deep Sea': ['#141414', '#389dff'],
+  'Pumpkin': ['#141414', '#ff9232'],
+  'Chalkboard': ['#030303', '#ffffff'],
+  'Heat': ['#fff7ec', '#fc8d59', '#7f0000'],
 };
 
 class Orderbook extends React.Component {
@@ -164,6 +168,7 @@ class Orderbook extends React.Component {
       histRender(this.vizState, this.nativeCanvas);
     } else if(setting.colorScheme) {
       this.vizState.colorScheme = colorSchemes[setting.colorScheme];
+      this.vizState.backgroundColor = colorSchemes[setting.colorScheme][0];
       this.vizState.scaleColor = chroma.scale(this.vizState.colorScheme).mode('lch').domain([0, +this.vizState.maxVisibleBandVolume]);
       renderInitial(this.vizState, this.nativeCanvas);
       histRender(this.vizState, this.nativeCanvas);
