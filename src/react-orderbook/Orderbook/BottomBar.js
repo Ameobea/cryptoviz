@@ -63,7 +63,6 @@ class BottomBar extends React.Component {
       newGranularity = 500;
       break;
     }
-    console.log(newGranularity);
 
     this.props.onSettingChange({priceGranularity: newGranularity});
   }

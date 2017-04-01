@@ -132,8 +132,6 @@ class Orderbook extends React.Component {
     const activePrices = {};
     _.each(props.initialBook, (val: {volume: number, isBid: boolean}, price: number) => {
       activePrices[price] = {
-        startTimestamp: props.initialTimestamp,
-        endTimestamp: props.initialTimestamp,
         volume: val.volume,
         isBid: val.isBid,
       };
@@ -165,7 +163,7 @@ class Orderbook extends React.Component {
     } else if(setting.priceGranularity) {
       this.vizState.priceGranularity = setting.priceGranularity;
       renderInitial(this.vizState, this.nativeCanvas);
-      histRender(this.vizState, this.nativeCanvas);
+      histRender(this.vizState, this.nativeCanvas, true);
     } else if(setting.colorScheme) {
       this.vizState.colorScheme = colorSchemes[setting.colorScheme];
       this.vizState.backgroundColor = colorSchemes[setting.colorScheme][0];
