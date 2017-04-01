@@ -39,7 +39,6 @@ class Orderbook extends React.Component {
       priceGranularity: 100, // the number of destinct price levels to mark on the visualization
       timeGranuality: 1000, // the min number of ms that can exist as a distinct unit
       maxVisibleBandVolume: null, // the max level a band has ever been at in the current zoom
-      latestMaxVolumeChange: null, // the maximum band volume level at the latest price update
       manualZoom: false, // if true, then we shouldn't re-adjust the zoom level
       // duplicated settings from props
       canvasHeight: props.canvasHeight,
@@ -60,6 +59,7 @@ class Orderbook extends React.Component {
       bidTradeLineExtended: false,
       hoveredX: 0,
       hoveredY: 0,
+      histRendering: false, // set to true during historical renders to try to avoid race conditions
       // bestBid: null,
       // bestBidChanges: [],
       // bestAsk: null,
@@ -84,6 +84,8 @@ class Orderbook extends React.Component {
   componentWillReceiveProps(nextProps) {
     if(!_.isEqual(nextProps.change, this.props.change)) {
       // if we've got a new update, render it
+      if(this.vizState.histRendering)
+        console.error(nextProps.change);
       renderUpdate(this.vizState, nextProps.change, this.nativeCanvas);
     } else if(!_.isEqual(nextProps.initialBook, this.props.initialBook)) {
       // currency has changed; reset all internal state and re-initialize component
@@ -123,20 +125,12 @@ class Orderbook extends React.Component {
     this.vizState.latestMaxVolumeChange = this.vizState.maxVisibleBandVolume;
     this.vizState.askTradeLineExtended = false;
     this.vizState.bidTradeLineExtended = false;
-    console.log(`Starting max band value: ${this.vizState.maxVisibleBandVolume}`);
 
     // calculate color scheme and set up chroma.js color scale function
     this.vizState.scaleColor = chroma.scale(this.vizState.colorScheme).mode('lch').domain([0, +this.vizState.maxVisibleBandVolume]);
 
     // populate the active prices from the initial book image
-    const activePrices = {};
-    _.each(props.initialBook, (val: {volume: number, isBid: boolean}, price: number) => {
-      activePrices[price] = {
-        volume: val.volume,
-        isBid: val.isBid,
-      };
-    });
-    this.vizState.activePrices = activePrices;
+    this.vizState.activePrices = props.initialBook;
 
     // get the initial top-of-book bid and ask prices
     // const {bestBid, bestAsk} = getTopOfBook(this.vizState.activePrices, this.vizState.pricePrecision);

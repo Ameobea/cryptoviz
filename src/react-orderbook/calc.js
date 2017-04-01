@@ -44,44 +44,6 @@ function gpp(
 }
 
 /**
- * Given a book in `Orderbook` format, returns a sorted list of prices from it.
- */
-function getPricesFromBook(book: Orderbook, pricePrecision: number): Array<string> {
-  const floatKeys = _.map(Object.keys(book), parseFloat).sort((a, b) => a-b);
-  return _.map(floatKeys, fp => fp.toFixed(pricePrecision));
-}
-
-/**
- * Given an image of the orderbook as a HashMap, calculates an optimal min and max zoom using the density of orders
- * and the current top-of-book price.  NOT CURRENTLY USED.
- * @return {{min: number, max: number}} - The optimal locations of the min and max visible prices
- * @param {number} pricePrecision - The max number of decimals a price level may have.
- */
-function getInitialPriceRange(book: Orderbook, pricePrecision: number): {min: number, max: number} {
-  const prices = Object.keys(book);
-
-  // calculate the total amount of volume listed in the book
-  const totalVolume = _.sumBy(prices, price => book[price].volume * price);
-  // _.each(prices, price => {totalVolume += book[price].volume;});
-
-  let minPrice = 0;
-  let partialSum = 0;
-  // find the price where 25% of the volume is below it and the price where 25% is above it
-  for(let i=0; i<prices.length; i++) {
-    const price = prices[i];
-    partialSum += (book[price].volume * price);
-    const percentage = partialSum / totalVolume;
-    if(percentage >= .75) {
-      return {min: minPrice, max: price};
-    } else if(percentage >= .25 && minPrice === 0) {
-      minPrice = price;
-    }
-  }
-
-  console.error('Finished looping in `getInitialPriceRange` and reached end of loop!');
-}
-
-/**
  * Given an image of the initial orderbook, returns an array of `BandDef`s that contain the initial volumes for each band
  */
 function getInitialBandValues(
@@ -98,19 +60,16 @@ function getInitialBandValues(
     bands[i] = {
       startTimestamp: initialTimestamp,
       endTimestamp: initialTimestamp,
-      volume: 0,
+      volume: '0',
     };
   }
   let curBandIndex = 0;
 
   _.each(prices, price => {
-    if((+price >= +minVisiblePrice) && (+price <= +maxVisiblePrice)) {
-      if(+price > ((curBandIndex + 1) * bandPriceSpan)) {
-        curBandIndex = getBandIndex({maxPrice: maxVisiblePrice, minPrice: minVisiblePrice, priceGranularity: priceGranularity}, price);
-
-        const rawVolume = (+bands[curBandIndex].volume + +initialBook[price].volume);
-        bands[curBandIndex].volume = rawVolume.toFixed(pricePrecision);
-      }
+    curBandIndex = getBandIndex({maxPrice: maxVisiblePrice, minPrice: minVisiblePrice, priceGranularity: priceGranularity}, price);
+    if(curBandIndex >= 0 && curBandIndex < priceGranularity) {
+      const rawVolume = (+bands[curBandIndex].volume + +initialBook[price].volume);
+      bands[curBandIndex].volume = rawVolume.toFixed(pricePrecision);
     }
   });
 
@@ -122,7 +81,7 @@ function getInitialBandValues(
  * @return {{bestBid: number, bestAsk: number}} - The current top-of-book bid and ask
  */
 function getTopOfBook(book: Orderbook, pricePrecision: number): {bestBid: number, bestAsk: number} {
-  const prices = getPricesFromBook(book, pricePrecision);
+  const prices = Object.keys(book);
 
   for(let i=0; i<prices.length; i++) {
     if(!book[prices[i]].isBid) {
@@ -152,6 +111,8 @@ function getMaxVisibleBandVolume(
   _.each(visiblePrices, price => {
     // if this price is outside of the current band, change band index, reset counts, and determine new band index
     const newBandIndex = getBandIndex(vizState, price);
+    if(newBandIndex >= vizState.priceGranularity)
+      return false;
     if(newBandIndex > curBandIndex) {
       if(curBandVolume > maxBandVolume) {
         maxBandVolume = curBandVolume;
@@ -199,7 +160,6 @@ function getPriceFromPixel(vizState, y) {
 }
 
 export {
-  getPixelPosition, gpp, getPricesFromBook, getInitialPriceRange, getInitialBandValues,
-  getTopOfBook, getMaxVisibleBandVolume, getBandIndex, getPixelX, getPixelY, getPriceFromPixel,
-  getTimestampFromPixel
+  getPixelPosition, gpp, getInitialBandValues, getTopOfBook, getMaxVisibleBandVolume, getBandIndex, getPixelX,
+  getPixelY, getPriceFromPixel, getTimestampFromPixel
 };

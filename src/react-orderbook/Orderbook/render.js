@@ -38,7 +38,6 @@ function renderUpdate(
     trades: Array<{timestamp: number, price: number, amountTraded: number}>
   }, change, canvas
 ) {
-  // console.log(change);
   const timestamp = change.timestamp;
   let volumeDiff: number, fixedPrice, curBandIndex, isBid;
 
@@ -127,6 +126,7 @@ function renderUpdate(
     console.warn(`Negative new volume at price ${price}`);
   }
 
+  // update the price level
   vizState.activePrices[fixedPrice] = {
     volume: newPriceVolume.toFixed(vizState.pricePrecision),
     isBid: isBid,
@@ -150,7 +150,7 @@ function renderUpdate(
   const rawVolume = +activeBand.volume + volumeDiff;
   activeBand.volume = rawVolume.toFixed(vizState.pricePrecision);
   if(activeBand.volume < 0) {
-    activeBand.volume = 0;
+    activeBand.volume = (0).toFixed(vizState.pricePrecision);
     console.warn(`sub-zero new band volume at band level ${curBandIndex}`);
   }
   activeBand.endTimestamp = timestamp;
@@ -158,23 +158,8 @@ function renderUpdate(
   if(curBandIndex >= 0 && curBandIndex < vizState.priceGranularity) {
     const newVolume = +vizState.activeBands[curBandIndex].volume;
 
-    // if the current max band volume changed, add that update to the list of updates
-    if(vizState.activeBands[curBandIndex].volume == vizState.latestMaxVolumeChange ||
-       newVolume > +vizState.latestMaxVolumeChange) {
-      if(volumeDiff !== 0) {
-        // update the active band volume change
-        console.log(`Current max band volume set to ${newVolume}`);
-        vizState.latestMaxVolumeChange = newVolume.toFixed(vizState.pricePrecision);
-        vizState.maxBandVolumeChanges.push({
-          timestamp: timestamp,
-          volume: newVolume.toFixed(vizState.pricePrecision),
-        });
-      }
-    }
-
     // if we broke the max visible value record, re-render the entire viz with a different shading based on the new max volume
     if(newVolume > +vizState.maxVisibleBandVolume) {
-      console.log(`Max visible band volume set to ${newVolume}`);
       vizState.maxVisibleBandVolume = newVolume.toFixed(vizState.pricePrecision);
       vizState.scaleColor = chroma.scale(vizState.colorScheme).mode('lch').domain([0, newVolume]);
       histRender(vizState, canvas);
@@ -242,7 +227,7 @@ function drawBands(vizState, curTimestamp, canvas) {
   const ctx = canvas.getContext('2d');
   _.each(vizState.activeBands, (band: BandDef, i: number) => {
     band.endTimestamp = curTimestamp;
-    if(band.volume !== '0') {
+    if(band.volume != '0') {
       // render the band, subtracting the index from the total number of bands because the coordinates are reversed on the canvas
       drawBand(vizState, band, i, ctx);
     }
@@ -270,9 +255,9 @@ function drawBand(vizState, band: {startTimestamp: number, endTimestamp: number}
  * determines the background color of a volume band and returns it.
  */
 function getBandColor(band, maxVisibleVolume: string, scaleColor) {
-  if(+band.volume > +maxVisibleVolume) {
-    console.warn(`Received band with volume of ${band.volume} which is greater than supplied max band volume of ${maxVisibleVolume}`);
-  }
+  // if(+band.volume > +maxVisibleVolume) {
+  //   console.warn(`Received band with volume of ${band.volume} which is greater than supplied max band volume of ${maxVisibleVolume}`);
+  // }
   return scaleColor(+band.volume).hex();
 }
 

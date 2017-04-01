@@ -37,13 +37,11 @@ class OrderbookVisualizer extends React.Component {
     this.handleNewTrade = this.handleNewTrade.bind(this);
     this.handleCurrencyChange = this.handleCurrencyChange.bind(this);
 
-    const prices = _.map(this.props.initialBook, 'price');
-    const values = _.map(this.props.initialBook, level => { return {volume: level.volume, isBid: level.isBid}; });
     this.state = {
       // map the array of objects to a K:V object matching price:volume at that price level
-      curBook: _.zipObject(prices, values), // the latest version of the order book containing all live buy/sell limit orders
+      curBook: props.initialBook, // the latest version of the order book containing all live buy/sell limit orders
       latestChange: {}, // the most recent change that has occured in the orderbook
-      initialBook: _.zipObject(prices, values),
+      initialBook: props.initialBook,
       initialTimestamp: this.props.initialTimestamp,
       curTimestamp: this.props.initialTimestamp,
     };
@@ -59,9 +57,7 @@ class OrderbookVisualizer extends React.Component {
   componentWillReceiveProps(nextProps) {
     if(!_.isEqual(nextProps.initialBook, this.props.initialBook)) {
       // currency has changed; reset all internal state and re-initialize component
-      const prices = _.map(nextProps.initialBook, 'price');
-      const values = _.map(nextProps.initialBook, level => { return {volume: level.volume, isBid: level.isBid}; });
-      this.setState({initialBook: _.zipObject(prices, values)});
+      this.setState({initialBook: nextProps.initialBook});
     }
   }
 
@@ -106,10 +102,7 @@ OrderbookVisualizer.propTypes = {
   bookRemovalCallbackExecutor: React.PropTypes.func.isRequired,
   depthChartCanvasHeight: React.PropTypes.number,
   depthChartCanvasWidth: React.PropTypes.number,
-  initialBook: React.PropTypes.arrayOf(React.PropTypes.shape({
-    price: React.PropTypes.string.isRequired,
-    volume: React.PropTypes.string.isRequired
-  })).isRequired,
+  initialBook: React.PropTypes.object.isRequired,
   initialTimestamp: React.PropTypes.number.isRequired,
   maxPrice: React.PropTypes.string.isRequired,
   minPrice: React.PropTypes.string.isRequired,

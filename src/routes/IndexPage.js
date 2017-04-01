@@ -78,11 +78,11 @@ class IndexPage extends React.Component {
       .then(res => res.json())
       .then(this.handleTrades).catch(console.error);
 
-    // fetch an image of the initial orderbook from the HTTP API
-    const bookUrl = `https://poloniex.com/public?command=returnOrderBook&currencyPair=${currency}&depth=1000000000`;
-    fetch(bookUrl)
-      .then(res => res.json())
-      .then(this.handleBook).catch(console.error);
+    // // fetch an image of the initial orderbook from the HTTP API
+    // const bookUrl = `https://poloniex.com/public?command=returnOrderBook&currencyPair=${currency}&depth=1000000000`;
+    // fetch(bookUrl)
+    //   .then(res => res.json())
+    //   .then(this.handleBook).catch(console.error);
 
     // initialize WS connection to Poloniex servers and open the connection
     this.connection = new WebSocket('wss://api2.poloniex.com');
@@ -204,8 +204,14 @@ class IndexPage extends React.Component {
             console.error(`Expected symbol ${this.currency} but received data for ${orderbook.currencyPair}`);
           } else {
             this.currencyChannel = msg[0];
-            // console.log(orderbook);
-            // TODO: handle orderbook and send to components
+            const mergedBook = {};
+            _.each(Object.keys(orderbook.orderBook[0]), price => {
+              mergedBook[price] = {volume: orderbook.orderBook[0][price], isBid: false};
+            });
+            _.each(Object.keys(orderbook.orderBook[1]), price => {
+              mergedBook[price] = {volume: orderbook.orderBook[1][price], isBid: true};
+            });
+            this.setState({initialBook: mergedBook});
             this.lastSeq = msg[1];
           }
           break;
