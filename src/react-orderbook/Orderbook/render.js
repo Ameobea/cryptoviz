@@ -247,7 +247,7 @@ function drawBand(vizState, band: {startTimestamp: number, endTimestamp: number}
   const bottomRightCoords = gpp(vizState, band.endTimestamp, lowPrice);
 
   ctx.fillStyle = getBandColor(band, vizState.maxVisibleBandVolume, vizState.scaleColor);
-  ctx.fillRect(Math.floor(topLeftCoords.x), Math.ceil(topLeftCoords.y), Math.ceil(bottomRightCoords.x - topLeftCoords.x), bottomRightCoords.y - topLeftCoords.y);
+  ctx.fillRect(Math.ceil(topLeftCoords.x), Math.floor(topLeftCoords.y), Math.ceil(bottomRightCoords.x - topLeftCoords.x), bottomRightCoords.y - topLeftCoords.y);
 }
 
 /**

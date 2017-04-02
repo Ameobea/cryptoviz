@@ -43,7 +43,6 @@ function renderScales(vizState) {
     levelText.fillColor = vizState.textColor;
     levelText.content = rawPrice.toFixed(vizState.pricePrecision);
     levelText.name = `levelText_${bandBottomPixel}`;
-    console.log(bandBottomPixel);
     // draw a light line across the chart at that level
     const priceLine = new Path({
       name: `priceLine_${curLevel}`,
@@ -217,12 +216,66 @@ function renderTradeNotification(vizState, fixedPrice, amountTraded, timestamp, 
   const notification = new vizState.paperscope.Path.Circle(new vizState.paperscope.Point(x, y), radius);
   notification.name = `trade-${timestamp}_${fixedPrice}`;
   notification.fillColor = isBid ? 'blue' : 'red';
+  // print out information about the trade when hovered
+  notification.onMouseEnter = e => {
+    renderTradeHover(vizState, e.point, e.target.area, e.target.name);
+  };
+  // and remove it when unhovered
+  notification.onMouseLeave = e => {
+    hideTradeHover(vizState);
+  }
 
   // reset the status of the point line extension
   if(isBid) {
     vizState.bidTradeLineExtended = false;
   } else {
     vizState.askTradeLineExtended = false;
+  }
+}
+
+/**
+ * Displays an info box containing data about the currently hovered trade notification.
+ */
+function renderTradeHover(vizState, {x, y}, area, name) {
+  const { Point, PointText } = vizState.paperscope;
+  // determine the start location of the notification
+  let displayX, displayY;
+  if(x > 160) {
+    displayX = x - 50;
+  } else {
+    displayX = x + 25;
+  }
+
+  if(y > 50) {
+    displayY = y - 25;
+  } else {
+    displayY = y + 25;
+  }
+
+  const volumeText = new PointText(new Point(displayX, displayY));
+  const volume = (Math.sqrt(area / Math.PI) / vizState.maxTradeMarketRadius) * vizState.maxRenderedTrade;
+  volumeText.content = '~ ' + volume.toFixed(vizState.pricePrecision);
+  volumeText.fontSize = '11px';
+  volumeText.fillColor = vizState.textColor;
+  volumeText.name = 'volumeText';
+
+  // [timestamp, fixedPrice]
+  const split = name.split('-')[1].split('_');
+  const timeText = new PointText(new Point(displayX, displayY - 15));
+  timeText.content = new Date(+split[0]).toString().split(' ')[4];
+  timeText.fontSize = '11px';
+  timeText.fillColor = vizState.textColor;
+  timeText.name = 'timeText';
+}
+
+/**
+ * Removes the displayed information about the previously hovered trade notification.
+ */
+function hideTradeHover(vizState) {
+  const item = vizState.paperscope.project.activeLayer.children['volumeText'];
+  if(item) {
+    vizState.paperscope.project.activeLayer.children['timeText'].remove();
+    item.remove();
   }
 }
 
@@ -267,6 +320,9 @@ function extendTradeLines(vizState, timestamp) {
  */
 function reRenderTrades(vizState) {
   vizState.paperscope.activate();
+
+  // hide any previously visible trade notification since it's likely no longer hovered
+  hideTradeHover(vizState);
 
   // move all of the circular trade markers
   _.each(getTradeNotifications(vizState.paperscope), item => {

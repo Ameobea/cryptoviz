@@ -100,11 +100,11 @@ function histRender(vizState, canvas, recalcMaxBandValues) {
       const activeBand = vizState.activeBands[bandIndex];
 
       // if the band's length is less than a pixel, don't bother drawing it but still update volume.
-      // if(timestamp - activeBand.startTimestamp > pixelWidth) {
+      if(timestamp - activeBand.startTimestamp > pixelWidth) {
         activeBand.endTimestamp = timestamp;
         drawBand(vizState, activeBand, bandIndex, canvas.getContext('2d'));
         activeBand.startTimestamp = vizState.activeBands[bandIndex].endTimestamp;
-      // }
+      }
 
       // update the band volume and end timestamp to reflect this update
       const rawVolume = +activeBand.volume + volumeDiff;
@@ -114,10 +114,6 @@ function histRender(vizState, canvas, recalcMaxBandValues) {
     // update the most recent timestamp
     curTimestamp = timestamp;
   });
-
-  if(!_.isEqual(initialPriceLevels, vizState.activePrices)) {
-    debugger;
-  }
 
   // update the postions of the trade markers
   reRenderTrades(vizState);
