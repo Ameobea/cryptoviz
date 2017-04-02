@@ -15,14 +15,14 @@ function getPixelPosition(
 ): {x: number, y: number} {
   const x = ((timestamp - minTime) / (maxTime - minTime)) * canvasWidth;
   const y = canvasHeight - (((price - minPrice) / (maxPrice - minPrice)) * canvasHeight);
-  return {x: x, y: y};
+  return {x: x + 60, y: y};
 }
 
 /**
  * Given a timestamp, returns its pixel position.
  */
 function getPixelX(vizState, timestamp) {
-  return ((timestamp - vizState.minTimestamp) / (vizState.maxTimestamp - vizState.minTimestamp)) * vizState.canvasWidth;
+  return ((timestamp - vizState.minTimestamp) / (vizState.maxTimestamp - vizState.minTimestamp)) * vizState.canvasWidth + 60;
 }
 
 /**
@@ -150,7 +150,7 @@ function getBandIndex(
 
 function getTimestampFromPixel(vizState, x) {
   const timeRange = +vizState.maxTimestamp - +vizState.minTimestamp;
-  return ((x / vizState.canvasWidth) * timeRange) + +vizState.minTimestamp;
+  return (((x - 60) / vizState.canvasWidth) * timeRange) + +vizState.minTimestamp;
 }
 
 function getPriceFromPixel(vizState, y) {

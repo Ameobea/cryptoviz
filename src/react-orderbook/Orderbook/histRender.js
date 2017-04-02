@@ -6,7 +6,7 @@ const chroma = require('chroma-js');
 
 import { getInitialBandValues, getBandIndex } from '../calc';
 import { renderInitial, drawBand, drawBands } from './render';
-import { reRenderTrades, updateTextInfo } from './paperRender';
+import { reRenderTrades, updateTextInfo, renderScales } from './paperRender';
 
 /**
  * Given a set of historical price level updates and trade data as well as the settings for the visualization's current
@@ -40,6 +40,7 @@ function histRender(vizState, canvas, recalcMaxBandValues) {
 
   // if a setting has changed causing us to need to re-calculate max band values, do so.
   if(recalcMaxBandValues) {
+    renderScales(vizState);
     // and create a variable to hold the max band volume of the current simulated price update
     let maxVisibleBandVolume = +_.maxBy(initialBandValues, 'volume').volume;
 

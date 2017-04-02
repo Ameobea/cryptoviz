@@ -8,8 +8,52 @@ import { histRender } from './histRender';
 /**
  * Renders in the price and time scales for the visualization
  */
-function renderScales() {
-  // TODO
+function renderScales(vizState) {
+  const { Color, Path, Point, PointText } = vizState.paperscope;
+  // remove any pre-existnig price lines first
+  const oldItems = _.filter(vizState.paperscope.project.activeLayer.children, item => {
+    return _.includes(item.name, 'priceLine_') || _.includes(item.name, 'levelText_');
+  });
+  _.each(oldItems, item => {
+    item.remove();
+  });
+
+  // draw a line on the left side of the visualization to serve as the price axis
+  const axisLine = new Path({
+    segments: [new Point(60, 0), new Point(60, vizState.canvasHeight)],
+    strokeColor: vizState.textColor,
+  });
+
+  // Draw to draw one price label every 50 pixels.  Have them be inline with bands.
+  const labelCount = Math.floor((vizState.canvasHeight - 1) / 50);
+  const bandPriceSpan = (+vizState.maxPrice - +vizState.minPrice) / vizState.priceGranularity;
+  const bandPixelHeight = vizState.canvasHeight / vizState.priceGranularity;
+  // how many price bands between each labeled price level
+  const levelSpacing = Math.ceil(50 / bandPixelHeight);
+  const totalLevels = Math.floor(vizState.canvasHeight / levelSpacing);
+  let curLevel = vizState.priceGranularity;
+  while(curLevel > 0) {
+    // determine the raw price of where we'd like to place the band
+    const rawPrice = +vizState.minPrice + (bandPriceSpan * curLevel);
+    // find the pixel value of the bottom of this price band
+    const bandBottomPixel = vizState.canvasHeight - (bandPixelHeight * curLevel);
+    // write the price level at that point
+    const levelText = new PointText(new Point(0, bandBottomPixel));
+    levelText.fontSize = '10px';
+    levelText.fillColor = vizState.textColor;
+    levelText.content = rawPrice.toFixed(vizState.pricePrecision);
+    levelText.name = `levelText_${bandBottomPixel}`;
+    console.log(bandBottomPixel);
+    // draw a light line across the chart at that level
+    const priceLine = new Path({
+      name: `priceLine_${curLevel}`,
+      segments: [new Point(60, bandBottomPixel), new Point(vizState.canvasWidth, bandBottomPixel)],
+      strokeColor: new Color(0, 188, 212, 0.72),
+      strokeWidth: 0.5,
+    });
+
+    curLevel -= levelSpacing;
+  }
 }
 
 /**
@@ -93,6 +137,9 @@ function initPaperCanvas(vizState) {
     vizState.hoveredY = y;
     updateTextInfo(vizState);
   };
+
+  // draw the axis and price scales
+  renderScales(vizState);
 }
 
 /**
