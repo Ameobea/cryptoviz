@@ -44,6 +44,7 @@ class Orderbook extends React.Component {
       canvasHeight: props.canvasHeight,
       canvasWidth: props.canvasWidth,
       pricePrecision: props.pricePrecision,
+      nativeCanvas: null,
       // visual settings
       colorScheme: ['#141414', '#7cbeff'],
       backgroundColor: '#141414',
@@ -74,6 +75,7 @@ class Orderbook extends React.Component {
 
   componentDidMount() {
     renderInitial(this.vizState, this.nativeCanvas);
+    this.vizState.nativeCanvas = this.nativeCanvas;
 
     // initialize the PaperJS environment on the internal canvas
     this.vizState.paperscope = new paper.PaperScope();
@@ -119,6 +121,8 @@ class Orderbook extends React.Component {
     this.vizState.maxTimestamp = props.initialTimestamp + this.vizState.timeScale;
     this.vizState.minPrice = props.minPrice;
     this.vizState.maxPrice = props.maxPrice;
+    this.vizState.initialMinPrice = props.minPrice;
+    this.vizState.initialMaxPrice = props.maxPrice;
     this.vizState.maxVisibleBandVolume = getMaxVisibleBandVolume(
       this.vizState, props.initialBook, props.minPrice, props.maxPrice, this.vizState.priceGranularity, this.vizState.pricePrecision
     );

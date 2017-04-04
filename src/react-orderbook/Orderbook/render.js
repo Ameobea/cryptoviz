@@ -139,7 +139,7 @@ function renderUpdate(
 
   // draw the old band if it is currently visible.  If not, draw all the other bands and exit.
   const activeBand = vizState.activeBands[curBandIndex];
-  if(curBandIndex >= 0 && curBandIndex < vizState.priceGranularity) {
+  if(curBandIndex >= 0 && curBandIndex < vizState.priceGranularity && timestamp < vizState.maxTimestamp) {
     activeBand.endTimestamp = timestamp;
     drawBand(vizState, activeBand, curBandIndex, canvas.getContext('2d'));
   } else {
@@ -159,7 +159,7 @@ function renderUpdate(
     const newVolume = +vizState.activeBands[curBandIndex].volume;
 
     // if we broke the max visible value record, re-render the entire viz with a different shading based on the new max volume
-    if(newVolume > +vizState.maxVisibleBandVolume) {
+    if(newVolume > +vizState.maxVisibleBandVolume && !vizState.manualZoom) {
       vizState.maxVisibleBandVolume = newVolume.toFixed(vizState.pricePrecision);
       vizState.scaleColor = chroma.scale(vizState.colorScheme).mode('lch').domain([0, newVolume]);
       histRender(vizState, canvas);
@@ -189,7 +189,7 @@ function renderUpdate(
 
   // if we've come very near to or crossed the right side of the canvas with this update, re-draw the viz with a larger view
   const timeRange = vizState.maxTimestamp - vizState.minTimestamp;
-  if(timestamp > vizState.minTimestamp + (.95 * timeRange)) {
+  if(timestamp > vizState.minTimestamp + (.95 * timeRange) && !vizState.manualZoom) {
     vizState.maxTimestamp += .2 * (vizState.maxTimestamp - vizState.minTimestamp);
     return histRender(vizState, canvas);
   }
@@ -223,6 +223,8 @@ function renderUpdate(
  * Draws all active bands on the visualization.
  */
 function drawBands(vizState, curTimestamp, canvas) {
+  if(curTimestamp > vizState.maxTimestamp)
+    return;
   // draw all the active bands and add a small bit of extra time at the right side so new bands are immediately visible
   const ctx = canvas.getContext('2d');
   _.each(vizState.activeBands, (band: BandDef, i: number) => {

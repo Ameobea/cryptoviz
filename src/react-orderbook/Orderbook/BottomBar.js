@@ -13,6 +13,7 @@ class BottomBar extends React.Component {
     this.handleCurrencySelect = this.handleCurrencySelect.bind(this);
     this.handleGranularitySelect = this.handleGranularitySelect.bind(this);
     this.handleColorSchemeChange = this.handleColorSchemeChange.bind(this);
+    this.updateHoveredGranularity = this.updateHoveredGranularity.bind(this);
 
     this.state = {
       selectedCurrency: 'ETH',
@@ -26,9 +27,13 @@ class BottomBar extends React.Component {
       this.props.onSettingChange({currency: value});
   }
 
-  handleGranularitySelect(e, newValue) {
+  updateHoveredGranularity(e, newValue) {
+    this.setState({hoveredGranularity: newValue});
+  }
+
+  handleGranularitySelect() {
     let newGranularity;
-    switch(newValue) {
+    switch(this.state.hoveredGranularity) {
     case 0.0:
       newGranularity = 15;
       break;
@@ -96,7 +101,7 @@ class BottomBar extends React.Component {
 
           <td width='40%'><div style={{paddingRight: '10px'}}>
             <p style={{marginBottom: '-25px'}}>{'Price Level Granularity'}</p>
-            <Slider onChange={this.handleGranularitySelect} step={0.1} value={.5} />
+            <Slider onChange={this.updateHoveredGranularity} onDragStop={this.handleGranularitySelect} step={0.1} value={.5} />
           </div></td>
 
           <td width='25%'><div style={{marginTop: '-10%'}}>

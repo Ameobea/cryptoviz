@@ -45,9 +45,11 @@ function histRender(vizState, canvas, recalcMaxBandValues) {
     let maxVisibleBandVolume = +_.maxBy(initialBandValues, 'volume').volume;
 
     _.each(vizState.priceLevelUpdates, ({price, volume, timestamp, isBid}) => {
-      // ignore level updates already taken into account
+      // ignore level updates already taken into account and stop when we reach off-the-chart timestamps
       if(timestamp <= vizState.minTimestamp) {
         return;
+      } else if(timestamp > vizState.maxTimestamp) {
+        return false;
       }
 
       const volumeDiff = curPriceLevels[price] ? +volume - +curPriceLevels[price].volume : +volume;
@@ -81,9 +83,11 @@ function histRender(vizState, canvas, recalcMaxBandValues) {
   // how many ms across a pixel is
   const pixelWidth = (vizState.maxTimestamp - vizState.minTimestamp) / vizState.canvasWidth;
   _.each(vizState.priceLevelUpdates, ({price, volume, timestamp, isBid}) => {
-    // ignore level updates already taken into account
+    // ignore level updates already taken into account and off-the-chart timestamps
     if(timestamp <= vizState.minTimestamp) {
       return;
+    } else if(timestamp > vizState.maxTimestamp) {
+      return false;
     }
 
     const volumeDiff = initialPriceLevels[price] ? +volume - +initialPriceLevels[price].volume : +volume;

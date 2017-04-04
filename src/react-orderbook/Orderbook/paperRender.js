@@ -1,4 +1,5 @@
 //! Functions for rendering the PaperJS parts of the visualization on the second canvas
+/* eslint no-unused-vars: 'off' */
 
 const _ = require('lodash');
 
@@ -137,8 +138,115 @@ function initPaperCanvas(vizState) {
     updateTextInfo(vizState);
   };
 
+  // start creating the bounding rectangle
+  vizState.paperscope.project.view.onMouseDown = e => {
+    vizState.firstZoomRectangleCorner = e.point;
+    vizState.zoomRectangle = new Path.Rectangle(e.point, e.point);
+    vizState.zoomRectangle.fillColor = new Color(200, 200, 200, .4);
+  };
+
+  // set up the zoom rectangle handler
+  vizState.paperscope.project.view.onMouseDrag = e => {
+    vizState.zoomRectangle.remove();
+    vizState.zoomRectangle = new Path.Rectangle(vizState.firstZoomRectangleCorner, e.point);
+    vizState.zoomRectangle.fillColor = new Color(200, 200, 200, .4);
+  };
+
+  // zoom into the selected region when the mouse is released
+  vizState.paperscope.project.view.onMouseUp = e => {
+    zoomToRectangle(vizState, e.point);
+  };
+
   // draw the axis and price scales
   renderScales(vizState);
+}
+
+/**
+ * Zooms into the area selected by the user
+ */
+function zoomToRectangle(vizState, finalPoint) {
+  if(!vizState.zoomRectangle)
+    return;
+  vizState.zoomRectangle.remove();
+  vizState.zoomRectangle = null;
+
+  // ignore extremely tiny/accidental zooms
+  const xDiff = vizState.firstZoomRectangleCorner.x - finalPoint.x;
+  const yDiff = vizState.firstZoomRectangleCorner.y - finalPoint.y;
+  if(Math.abs(xDiff) <= 3 || Math.abs(yDiff) <= 3)
+    return;
+
+  const startPrice = getPriceFromPixel(vizState, vizState.firstZoomRectangleCorner.y);
+  const startTime = getTimestampFromPixel(vizState, vizState.firstZoomRectangleCorner.x);
+  const endPrice = getPriceFromPixel(vizState, finalPoint.y);
+  const endTime = getTimestampFromPixel(vizState, finalPoint.x);
+
+  if(startPrice > endPrice) {
+    vizState.minPrice = endPrice.toFixed(vizState.pricePrecision);
+    vizState.maxPrice = startPrice.toFixed(vizState.pricePrecision);
+  } else {
+    vizState.maxPrice = endPrice.toFixed(vizState.pricePrecision);
+    vizState.minPrice = startPrice.toFixed(vizState.pricePrecision);
+  }
+
+  if(startTime > endTime) {
+    vizState.minTimestamp = endTime;
+    vizState.maxTimestamp = startTime;
+  } else {
+    vizState.maxTimestamp = endTime;
+    vizState.minTimestamp = startTime;
+  }
+
+  vizState.manualZoom = true;
+  if(!vizState.resetButtom)
+    drawResetZoomButton(vizState);
+  histRender(vizState, vizState.nativeCanvas, true);
+}
+
+/**
+ * Creates a `Reset Zoom` button at the top-left of the visualization that can be used to reset the zoom back to default
+ */
+function drawResetZoomButton(vizState) {
+  if(vizState.resetButton)
+    return;
+  const { Color, Path, Point, PointText } = vizState.paperscope;
+
+  vizState.resetButton = new Path.Rectangle(new Point(70, 20), new Point(147, 40));
+  vizState.resetButton.fillColor = new Color(200, 200, 200, .22);
+  vizState.resetButton.onMouseDown = e => {
+    resetZoom(vizState);
+  };
+
+  vizState.resetText = new PointText(new Point(75, 35));
+  vizState.resetText.onMouseDown = e => {
+    resetZoom(vizState);
+  };
+  vizState.resetText.fillColor = vizState.textColor;
+  vizState.resetText.name = 'priceRangeText';
+  vizState.resetText.fontSize = '12px';
+  vizState.resetText.content = 'Reset Zoom';
+}
+
+/**
+ * Re-calculates optimal zoom levels and re-renders them into the visualization
+ */
+function resetZoom(vizState) {
+  vizState.resetButton.remove();
+  vizState.resetText.remove();
+  vizState.resetButton = null;
+  vizState.resetText = null;
+  vizState.minTimestamp = _.first(vizState.priceLevelUpdates).timestamp;
+  vizState.maxTimestamp = _.last(vizState.priceLevelUpdates).timestamp + (10 * 1000);
+  if(vizState.trades.length > 0) {
+    vizState.minPrice = _.minBy(vizState.trades, trade => +trade.price).price * .995;
+    vizState.maxPrice = _.maxBy(vizState.trades, trade => +trade.price).price * 1.005;
+  } else {
+    vizState.minPrice = vizState.initialMinPrice;
+    vizState.maxPrice = vizState.initialMaxPrice;
+  }
+  vizState.manualZoom = false;
+
+  histRender(vizState, vizState.nativeCanvas, true);
 }
 
 /**
@@ -223,7 +331,7 @@ function renderTradeNotification(vizState, fixedPrice, amountTraded, timestamp, 
   // and remove it when unhovered
   notification.onMouseLeave = e => {
     hideTradeHover(vizState);
-  }
+  };
 
   // reset the status of the point line extension
   if(isBid) {
