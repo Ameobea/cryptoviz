@@ -4,6 +4,9 @@ import React from 'react';
 import fetch from 'dva/fetch';
 const _ = require('lodash');
 
+const Gdax = require('gdax');
+const publicClient = new Gdax.PublicClient();
+
 import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
 import darkBaseTheme from 'material-ui/styles/baseThemes/darkBaseTheme';
@@ -16,26 +19,54 @@ class IndexPage extends React.Component {
   constructor(props){
     super(props);
 
-    // function for handling the result of the HTTP request for the list of currencies
+    // function for handling the result of the HTTP request for the list of currencies from Poloniex
     let handleCurrencies = currencyDefinitions => {
+      // filter out currency pairs for which there is no available data and create an array of their pairs
       const activeSymbols = _.filter(Object.keys(currencyDefinitions), symbol => {
         return !currencyDefinitions[symbol].delisted && !currencyDefinitions[symbol].frozen;
       });
-      const zippedCurrencies = _.zipObject(activeSymbols, _.map(activeSymbols, symbol => currencyDefinitions[symbol]));
-      delete zippedCurrencies['BTC'];
-      delete zippedCurrencies['USDT'];
 
-      this.setState({currencies: zippedCurrencies});
-      if(_.includes(activeSymbols, 'ETH')) {
+      const combinedCurrencies = _.map(activeSymbols, symbol => {
+        return {
+          exchange: 'Poloniex',
+          name: symbol,
+          id: symbol,
+        };
+      });
+
+      this.setState({currencies: [
+        ...this.state.currencies,
+        ...combinedCurrencies,
+      ]});
+      if(_.includes(activeSymbols, 'BTC_ETH')) {
         return 'BTC_ETH';
       } else if(_.includes(activeSymbols, 'XMR')) {
         return 'BTC_XMR';
       } else {
-        return `BTC_${activeSymbols[0]}`;
+        return activeSymbols[0];
       }
     };
-    handleCurrencies = handleCurrencies.bind(this);
 
+    // retrieve the list of all currency pairs from GDAX and add them to our available currencies
+    publicClient.getProducts((err, res, data) => {
+      // map the array of objects into an object
+      const gdaxPairs = _.map(data, pair => {
+        return {
+          exchange: 'GDAX',
+          name: pair.display_name,
+          id: pair.id,
+        };
+      });
+
+      this.setState({
+        currencies: [
+          ...this.state.currencies,
+          ...gdaxPairs,
+        ],
+      });
+    });
+
+    handleCurrencies = handleCurrencies.bind(this);
     this.wsSubscribe = this.wsSubscribe.bind(this);
     this.handleBook = this.handleBook.bind(this);
     this.handleTrades = this.handleTrades.bind(this);
@@ -44,8 +75,9 @@ class IndexPage extends React.Component {
     this.handleWsMsg = this.handleWsMsg.bind(this);
     this.initCurrency = this.initCurrency.bind(this);
 
-    const currenciesUrl = 'https://poloniex.com/public?command=returnCurrencies';
-    fetch(currenciesUrl).then(res => res.json())
+    // const currenciesUrl = 'https://poloniex.com/public?command=returnCurrencies';
+    const tickerUrl = 'https://poloniex.com/public?command=returnTicker';
+    fetch(tickerUrl).then(res => res.json())
       .then(handleCurrencies).catch(console.error)
       .then(this.initCurrency).catch(console.error);
 
@@ -61,7 +93,7 @@ class IndexPage extends React.Component {
     this.newTradeCallback = () => {console.warn('Dummy newTrade callback called!');};
 
     this.state = {
-      currencies: {},
+      currencies: [],
       initialBook: null,
       maxPrice: null,
       minPrice: null,
@@ -275,11 +307,15 @@ class IndexPage extends React.Component {
     this.newTradeCallback = callback;
   }
 
-  handleCurrencyChange(newCurrency) {
+  handleCurrencyChange({exchange, name, id}) {
     // disable old websocket to avoid sequence number resetting while we're reinitializing state
     clearInterval(this.connection.keepAlive);
     this.connection.close();
-    this.initCurrency(`BTC_${newCurrency}`);
+    if(exchange == 'Poloniex') {
+      this.initCurrency(id);
+    } else if(exchange == 'GDAX') {
+      // TODO
+    }
   }
 
   render() {
@@ -291,7 +327,7 @@ class IndexPage extends React.Component {
           <OrderbookVisualizer
             bookModificationCallbackExecutor={this.bookModificationExecutor}
             bookRemovalCallbackExecutor={this.bookRemovalExecutor}
-            currencies={Object.keys(this.state.currencies)}
+            currencies={this.state.currencies}
             initialBook={this.state.initialBook}
             initialTimestamp={_.now()}
             maxPrice={this.state.maxPrice.toFixed(this.props.pricePrecision)}

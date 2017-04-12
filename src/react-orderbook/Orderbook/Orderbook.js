@@ -214,6 +214,11 @@ Orderbook.propTypes = {
   canvasHeight: React.PropTypes.number,
   canvasWidth: React.PropTypes.number,
   change: React.PropTypes.shape(ChangeShape).isRequired,
+  currencies: React.PropTypes.arrayOf(React.PropTypes.shape({
+    id: React.PropTypes.string.isRequired,
+    exchange: React.PropTypes.string.isRequired,
+    name: React.PropTypes.string.isRequired,
+  })).isRequired,
   initialBook: React.PropTypes.object.isRequired,
   initialTimestamp: React.PropTypes.number.isRequired,
   maxPrice: React.PropTypes.string.isRequired,

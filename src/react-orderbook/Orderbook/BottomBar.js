@@ -6,6 +6,13 @@ import SelectField from 'material-ui/SelectField';
 import Slider from 'material-ui/Slider';
 import MenuItem from 'material-ui/MenuItem';
 
+/**
+ * Given a currency definition from the currency map, returns a pretty name for the currency selector
+ */
+function formatCurrency(def) {
+  return `${def.exchange}: ${def.name}`;
+}
+
 class BottomBar extends React.Component {
   constructor(props) {
     super(props);
@@ -16,15 +23,15 @@ class BottomBar extends React.Component {
     this.updateHoveredGranularity = this.updateHoveredGranularity.bind(this);
 
     this.state = {
-      selectedCurrency: 'ETH',
+      selectedCurrency: _.filter(props.currencies, ({exchange, id}) => exchange == 'Poloniex' && id == 'BTC_ETH')[0],
       selectedColorScheme: 'Blue Moon',
     };
   }
 
   handleCurrencySelect(e, i, value) {
-    this.setState({selectedCurrency: value});
-    if(value != this.state.selectedCurrency)
+    if(!_.isEqual(this.state.selectedCurrency, value))
       this.props.onSettingChange({currency: value});
+    this.setState({selectedCurrency: value});
   }
 
   updateHoveredGranularity(e, newValue) {
@@ -81,9 +88,11 @@ class BottomBar extends React.Component {
 
   render() {
     const {currencies, colorSchemeNames} = this.props;
+    console.log(currencies);
 
-    const currencyItems = _.map(currencies, currency => {
-      return <MenuItem key={currency} primaryText={currency} value={currency} />;
+    const currencyItems = _.map(_.sortBy(currencies, 'name'), currency => {
+      const prettyName = formatCurrency(currency);
+      return <MenuItem key={prettyName} primaryText={prettyName} value={currency} />;
     });
     const colorSchemeItems = _.map(colorSchemeNames, name => {
       return <MenuItem key={name} primaryText={name} value={name} />;
@@ -94,7 +103,11 @@ class BottomBar extends React.Component {
         <table width='100%'><tbody><tr>
 
           <td width='25%'><div style={{marginTop: '-10%'}}>
-            <SelectField floatingLabelText='Currency Pair' onChange={this.handleCurrencySelect} value={this.state.selectedCurrency}>
+            <SelectField
+              floatingLabelText='Currency Pair'
+              onChange={this.handleCurrencySelect}
+              value={this.state.selectedCurrency}
+            >
               {currencyItems}
             </SelectField>
           </div></td>
@@ -105,7 +118,11 @@ class BottomBar extends React.Component {
           </div></td>
 
           <td width='25%'><div style={{marginTop: '-10%'}}>
-            <SelectField floatingLabelText='Color Scheme' onChange={this.handleColorSchemeChange} value={this.state.selectedColorScheme}>
+            <SelectField
+              floatingLabelText='Color Scheme'
+              onChange={this.handleColorSchemeChange}
+              value={this.state.selectedColorScheme}
+            >
               {colorSchemeItems}
             </SelectField>
           </div></td>
@@ -124,7 +141,11 @@ class BottomBar extends React.Component {
 
 BottomBar.propTypes = {
   colorSchemeNames: React.PropTypes.arrayOf(React.PropTypes.string).isRequired,
-  currencies: React.PropTypes.arrayOf(React.PropTypes.string).isRequired,
+  currencies: React.PropTypes.arrayOf(React.PropTypes.shape({
+    id: React.PropTypes.string.isRequired,
+    exchange: React.PropTypes.string.isRequired,
+    name: React.PropTypes.string.isRequired,
+  })).isRequired,
   onSettingChange: React.PropTypes.func.isRequired,
   vizState: React.PropTypes.object.isRequired
 };

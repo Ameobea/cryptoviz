@@ -100,6 +100,11 @@ class OrderbookVisualizer extends React.Component {
 OrderbookVisualizer.propTypes = {
   bookModificationCallbackExecutor: React.PropTypes.func.isRequired,
   bookRemovalCallbackExecutor: React.PropTypes.func.isRequired,
+  currencies: React.PropTypes.arrayOf(React.PropTypes.shape({
+    id: React.PropTypes.string.isRequired,
+    exchange: React.PropTypes.string.isRequired,
+    name: React.PropTypes.string.isRequired,
+  })).isRequired,
   depthChartCanvasHeight: React.PropTypes.number,
   depthChartCanvasWidth: React.PropTypes.number,
   initialBook: React.PropTypes.object.isRequired,
@@ -120,7 +125,7 @@ var height = Math.max(body.scrollHeight, body.offsetHeight,
     html.clientHeight, html.scrollHeight, html.offsetHeight);
 
 OrderbookVisualizer.defaultProps = {
-  orderbookCanvasHeight: .89 * height,
+  orderbookCanvasHeight: .86 * height,
   orderbookCanvasWidth: document.getElementsByTagName('body')[0].offsetWidth,
   depthChartCanvasHeight: 600,
   depthChartCanvasWidth: 900,
