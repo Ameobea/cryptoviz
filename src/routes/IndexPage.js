@@ -63,7 +63,6 @@ class IndexPage extends React.Component {
     this.state = {
       currencies: {},
       initialBook: null,
-      selectedCurrency: 'ETH',
       maxPrice: null,
       minPrice: null,
     };
@@ -73,6 +72,7 @@ class IndexPage extends React.Component {
   initCurrency(currency) {
     this.currency = currency;
     // fetch a list of recent trades for determining price range to show in the visualizations
+    this.setState({selectedCurrency: currency});
     const tradesUrl = `https://poloniex.com/public?command=returnTradeHistory&currencyPair=${currency}`;
     fetch(tradesUrl)
       .then(res => res.json())

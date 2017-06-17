@@ -10,7 +10,7 @@ import { ChangeShape } from '../util';
 import { getMaxVisibleBandVolume, getInitialBandValues, getTopOfBook } from '../calc';
 import { renderInitial, renderUpdate } from './render';
 import { histRender } from './histRender';
-import { initPaperCanvas } from './paperRender';
+import { initPaperCanvas, resetZoom } from './paperRender';
 import BottomBar from './BottomBar';
 
 const colorSchemes = {
@@ -101,6 +101,10 @@ class Orderbook extends React.Component {
       this.vizState.paperscope = new paper.PaperScope();
       this.vizState.paperscope.setup(this.paperCanvas);
       initPaperCanvas(this.vizState);
+
+      // clear old trades from previous currency and reset zoom to default for the new currency
+      this.vizState.trades = [];
+      resetZoom(this.vizState);
     }
   }
 

@@ -231,10 +231,13 @@ function drawResetZoomButton(vizState) {
  * Re-calculates optimal zoom levels and re-renders them into the visualization
  */
 function resetZoom(vizState) {
-  vizState.resetButton.remove();
-  vizState.resetText.remove();
+  if(vizState.resetButton)
+    vizState.resetButton.remove();
+  if(vizState.resetButton)
+    vizState.resetText.remove();
   vizState.resetButton = null;
   vizState.resetText = null;
+
   vizState.minTimestamp = _.first(vizState.priceLevelUpdates).timestamp;
   vizState.maxTimestamp = _.last(vizState.priceLevelUpdates).timestamp + (10 * 1000);
   if(vizState.trades.length > 0) {
@@ -466,5 +469,5 @@ function renderNewBestPrice(vizState) {
 
 export {
   renderScales, renderNewTrade, renderOrderNotification, renderTradeNotification, renderNewBestPrice, reRenderTrades,
-  initPaperCanvas, extendTradeLines, updateTextInfo
+  initPaperCanvas, extendTradeLines, updateTextInfo, resetZoom
 };
