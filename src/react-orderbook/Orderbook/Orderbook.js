@@ -180,19 +180,22 @@ class Orderbook extends React.Component {
       <div>
         <div id='obWrapper' style={{width: '100%'}}>
           <canvas
-            height={this.props.canvasHeight}
+            height={this.vizState.canvasHeight}
             id='nativeCanvas'
             ref={function(canvas){this.nativeCanvas = canvas;}.bind(this)}
-            style={{ marginRight: '-100%', width: this.props.canvasWidth}}
-            width={this.props.canvasWidth}
+            style={{ marginRight: '-100%' }}
+            width={this.vizState.canvasWidth}
           />
 
+          {/*
+            PaperJS mutates the canvas DOM object directly, which really makes React unhappy.  It seems to do this by injecting in styles
+            rather than changing attributes themselves, so I've switched both the height and width into the style rather than using them
+            as attributes in order to fix an issue where this screwed up the canvas badly.
+          */}
           <canvas
-            height={this.props.canvasHeight}
             id='paperCanvas'
             ref={function(canvas){this.paperCanvas = canvas;}.bind(this)}
-            style={{ marginLeft: '-100%' }}
-            width={this.props.canvasWidth}
+            style={{ marginLeft: '-100%', height: this.vizState.canvasHeight, width: this.vizState.canvasWidth }}
           />
         </div>
 

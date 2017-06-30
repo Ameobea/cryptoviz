@@ -231,10 +231,10 @@ function drawResetZoomButton(vizState) {
  * Re-calculates optimal zoom levels and re-renders them into the visualization
  */
 function resetZoom(vizState) {
-  if(vizState.resetButton)
+  if(vizState.resetButton) {
     vizState.resetButton.remove();
-  if(vizState.resetButton)
     vizState.resetText.remove();
+  }
   vizState.resetButton = null;
   vizState.resetText = null;
 
