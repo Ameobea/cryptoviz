@@ -3,6 +3,7 @@
 // @flow
 
 import React from 'react';
+import PropTypes from 'prop-types';
 // import paper from 'paper';
 
 import { ChangeShape } from '../util';
@@ -52,12 +53,12 @@ class DepthChart extends React.Component {
 }
 
 DepthChart.propTypes = {
-  canvasHeight: React.PropTypes.number,
-  canvasWidth: React.PropTypes.number,
-  change: React.PropTypes.shape(ChangeShape),
-  initialBook: React.PropTypes.arrayOf(React.PropTypes.shape({
-    price: React.PropTypes.string.isRequired,
-    volume: React.PropTypes.string.isRequired
+  canvasHeight: PropTypes.number,
+  canvasWidth: PropTypes.number,
+  change: PropTypes.shape(ChangeShape),
+  initialBook: PropTypes.arrayOf(PropTypes.shape({
+    price: PropTypes.string.isRequired,
+    volume: PropTypes.string.isRequired
   })).isRequired,
 };
 

@@ -1,11 +1,14 @@
 // @flow
 
 import React from 'react';
+import PropTypes from 'prop-types';
 import fetch from 'dva/fetch';
 const _ = require('lodash');
 
-const Gdax = require('gdax');
-const publicClient = new Gdax.PublicClient();
+import { LiveOrderbook } from 'gdax-trading-toolkit/build/src/core/LiveOrderbook';
+import { GDAXFeed } from 'gdax-trading-toolkit/build/src/exchanges/gdax/GDAXFeed';
+import { getSubscribedFeeds } from 'gdax-trading-toolkit/build/src/factories/gdaxFactories';
+import { ConsoleLoggerFactory } from 'gdax-trading-toolkit/build/src/utils/Logger';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
@@ -88,9 +91,9 @@ class IndexPage extends React.Component {
     this.handleCurrencyChange = this.handleCurrencyChange.bind(this);
 
     // set up noop functions for the callbacks until the proper ones are sent over from the inner visualization
-    this.modificationCallback = () => {console.warn('Dummy modification callback called!');};
-    this.removalCallback = () => {console.warn('Dummy removal callback called!');};
-    this.newTradeCallback = () => {console.warn('Dummy newTrade callback called!');};
+    this.modificationCallback = () => console.warn('Dummy modification callback called!');
+    this.removalCallback = () => console.warn('Dummy removal callback called!');
+    this.newTradeCallback = () => console.warn('Dummy newTrade callback called!');
 
     this.state = {
       currencies: [],
@@ -102,7 +105,6 @@ class IndexPage extends React.Component {
 
   // function that's called to populate starting data about a currency for the visualization and initialize the viz
   initCurrency(currency) {
-    this.currency = currency;
     // fetch a list of recent trades for determining price range to show in the visualizations
     this.setState({selectedCurrency: currency});
     const tradesUrl = `https://poloniex.com/public?command=returnTradeHistory&currencyPair=${currency}`;
@@ -125,6 +127,72 @@ class IndexPage extends React.Component {
     this.connection.onmessage = this.handleWsMsg;
   }
 
+  initCurrentyGdax = currency => {
+    const logger = ConsoleLoggerFactory({ level: 'debug' });
+
+    const options = {
+      wsUrl: 'wss://ws-feed.gdax.com',
+      logger: logger
+    };
+
+    getSubscribedFeeds(options, [currency]).then(feed => {
+      const config = { product: currency, logger };
+      const book = new LiveOrderbook(config);
+
+      book.on('LiveOrderbook.snapshot', () => {
+        const state = book.book.state();
+
+        // Map orderbook to our internal format and set it into the state
+        const mapOrders = ({ price, size }) => [price, size];
+        const mappedBids = _.flatten(state.bids)
+          .map(_.property('orders'))
+          .map(mapOrders);
+        const mappedAsks = _.flatten(state.asks)
+          .map(_.property('orders'))
+          .map(mapOrders);
+        this.handleBook({ bids, asks });
+
+        // Set a starting min and max rate while we're at it
+        this.setState({
+          minPrice: book.book.highestBid * .995,
+          maxPrice: book.book.lowestAsk * 1.005,
+        });
+      });
+
+      book.on('LiveOrderbook.trade', ({ time, size, price, side }) => {
+        this.newTradeCallback({
+          timestamp: time || _.now(),
+          newTrade: {
+            price,
+            amountTraded: size,
+            wasBidFilled: side === 'ask',
+          },
+        });
+      });
+
+      book.on('LiveOrderbook.update', ({ price, size }) => {
+        if (size === 0) {
+          this.removalCallback({
+            timestamp: _.now(),
+            removal: {
+              price,
+              isBid: side === 'ask',
+            },
+          });
+        } else {
+          this.modificationCallback({
+            timestmap: _.now(),
+            modification: {
+              price,
+              newAmount: size,
+              isBid: side === 'ask',
+            }
+          });
+        }
+      })
+    });
+  }
+
   // function for handling the result of the HTTP request for recent trades used to determine starting price zoom levels
   handleTrades(tradeHistory) {
     const minRate = _.minBy(tradeHistory, 'rate').rate;
@@ -134,19 +202,24 @@ class IndexPage extends React.Component {
     this.setState({minPrice: minRate * .995, maxPrice: maxRate * 1.005});
   }
 
-  // function for handling the result of the HTTP request for the initial orderbook
-  handleBook(parsedRes) {
-    const bids = _.map(parsedRes.bids, level => {return {
+  /**
+   * Function for handling the result of the HTTP request for the initial orderbook.
+   * The bids and asks parameters should arrays of [price, size] arrays.
+   */
+  handleBook({ bids, asks }) {
+    const mappedBids = bids.map(level => ({
       price: level[0],
       volume: level[1].toFixed(this.props.pricePrecision),
       isBid: true,
-    }; });
-    const asks = _.map(parsedRes.asks, level => {return {
+    }));
+
+    const mappedAsks = asks.map(level => ({
       price: level[0],
       volume: level[1].toFixed(this.props.pricePrecision),
       isBid: false,
-    }; });
-    const orderbook = _.concat(bids, asks);
+    }));
+
+    const orderbook = _.concat(mappedBids, mappedAsks);
 
     // insert the initial book into the component's state
     console.log('setting initial book');
@@ -307,14 +380,16 @@ class IndexPage extends React.Component {
     this.newTradeCallback = callback;
   }
 
-  handleCurrencyChange({exchange, name, id}) {
+  handleCurrencyChange({ exchange, name, id }) {
     // disable old websocket to avoid sequence number resetting while we're reinitializing state
     clearInterval(this.connection.keepAlive);
     this.connection.close();
+
+    this.currency = id;
     if(exchange == 'Poloniex') {
       this.initCurrency(id);
     } else if(exchange == 'GDAX') {
-      // TODO
+      this.initCurrentyGdax(id);
     }
   }
 
@@ -343,7 +418,7 @@ class IndexPage extends React.Component {
 }
 
 IndexPage.propTypes = {
-  pricePrecision: React.PropTypes.number,
+  pricePrecision: PropTypes.number,
 };
 
 IndexPage.defaultProps = {

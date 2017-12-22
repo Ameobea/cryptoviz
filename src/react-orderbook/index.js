@@ -1,6 +1,7 @@
 //! A set of React components used to render interactive orderbook visualizations for limit orderbook data
 
 import React from 'react';
+import PropTypes from 'prop-types';
 
 const _ = require('lodash');
 
@@ -98,24 +99,24 @@ class OrderbookVisualizer extends React.Component {
 }
 
 OrderbookVisualizer.propTypes = {
-  bookModificationCallbackExecutor: React.PropTypes.func.isRequired,
-  bookRemovalCallbackExecutor: React.PropTypes.func.isRequired,
-  currencies: React.PropTypes.arrayOf(React.PropTypes.shape({
-    id: React.PropTypes.string.isRequired,
-    exchange: React.PropTypes.string.isRequired,
-    name: React.PropTypes.string.isRequired,
+  bookModificationCallbackExecutor: PropTypes.func.isRequired,
+  bookRemovalCallbackExecutor: PropTypes.func.isRequired,
+  currencies: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    exchange: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
   })).isRequired,
-  depthChartCanvasHeight: React.PropTypes.number,
-  depthChartCanvasWidth: React.PropTypes.number,
-  initialBook: React.PropTypes.object.isRequired,
-  initialTimestamp: React.PropTypes.number.isRequired,
-  maxPrice: React.PropTypes.string.isRequired,
-  minPrice: React.PropTypes.string.isRequired,
-  newTradeCallbackExecutor: React.PropTypes.func.isRequired,
-  onCurrencyChange: React.PropTypes.func.isRequired,
-  orderbookCanvasHeight: React.PropTypes.number,
-  orderbookCanvasWidth: React.PropTypes.number,
-  pricePrecision: React.PropTypes.number.isRequired
+  depthChartCanvasHeight: PropTypes.number,
+  depthChartCanvasWidth: PropTypes.number,
+  initialBook: PropTypes.object.isRequired,
+  initialTimestamp: PropTypes.number.isRequired,
+  maxPrice: PropTypes.string.isRequired,
+  minPrice: PropTypes.string.isRequired,
+  newTradeCallbackExecutor: PropTypes.func.isRequired,
+  onCurrencyChange: PropTypes.func.isRequired,
+  orderbookCanvasHeight: PropTypes.number,
+  orderbookCanvasWidth: PropTypes.number,
+  pricePrecision: PropTypes.number.isRequired
 };
 
 var body = document.body,

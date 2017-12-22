@@ -1,7 +1,8 @@
 //! Settings and information displayed under the visualization
 
-const _ = require('lodash');
+import _ from 'lodash';
 import React from 'react';
+import PropTypes from 'prop-types';
 import SelectField from 'material-ui/SelectField';
 import Slider from 'material-ui/Slider';
 import MenuItem from 'material-ui/MenuItem';
@@ -140,14 +141,14 @@ class BottomBar extends React.Component {
 }
 
 BottomBar.propTypes = {
-  colorSchemeNames: React.PropTypes.arrayOf(React.PropTypes.string).isRequired,
-  currencies: React.PropTypes.arrayOf(React.PropTypes.shape({
-    id: React.PropTypes.string.isRequired,
-    exchange: React.PropTypes.string.isRequired,
-    name: React.PropTypes.string.isRequired,
+  colorSchemeNames: PropTypes.arrayOf(PropTypes.string).isRequired,
+  currencies: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    exchange: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
   })).isRequired,
-  onSettingChange: React.PropTypes.func.isRequired,
-  vizState: React.PropTypes.object.isRequired
+  onSettingChange: PropTypes.func.isRequired,
+  vizState: PropTypes.object.isRequired
 };
 
 export default BottomBar;

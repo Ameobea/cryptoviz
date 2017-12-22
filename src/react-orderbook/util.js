@@ -1,21 +1,22 @@
 //! Misc. functions and constants used in multiple parts of the application
 
 import React from 'react';
+import PropTypes from 'prop-types';
 
 const ChangeShape = {
-  modificiation: React.PropTypes.shape({
-    price: React.PropTypes.string.isRequired,
-    newAmount: React.PropTypes.string.isRequired,
-    isBid: React.PropTypes.bool.isRequired
+  modificiation: PropTypes.shape({
+    price: PropTypes.string.isRequired,
+    newAmount: PropTypes.string.isRequired,
+    isBid: PropTypes.bool.isRequired
   }),
-  removal: React.PropTypes.shape({
-    price: React.PropTypes.string.isRequire,
-    isBid: React.PropTypes.bool.isRequired
+  removal: PropTypes.shape({
+    price: PropTypes.string.isRequire,
+    isBid: PropTypes.bool.isRequired
   }),
-  newTrade: React.PropTypes.shape({
-    price: React.PropTypes.string.isRequired,
-    amountTraded: React.PropTypes.string.isRequired,
-    wasBidFilled: React.PropTypes.bool.isRequired
+  newTrade: PropTypes.shape({
+    price: PropTypes.string.isRequired,
+    amountTraded: PropTypes.string.isRequired,
+    wasBidFilled: PropTypes.bool.isRequired
   })
 };
 

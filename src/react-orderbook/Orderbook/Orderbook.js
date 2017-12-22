@@ -2,9 +2,10 @@
 // @flow
 
 import React from 'react';
-const _ = require('lodash');
+import PropTypes from 'prop-types';
+import _ from 'lodash';
 import paper from 'paper';
-const chroma = require('chroma-js');
+import chroma from 'chroma-js';
 
 import { ChangeShape } from '../util';
 import { getMaxVisibleBandVolume, getInitialBandValues, getTopOfBook } from '../calc';
@@ -211,20 +212,20 @@ class Orderbook extends React.Component {
 }
 
 Orderbook.propTypes = {
-  canvasHeight: React.PropTypes.number,
-  canvasWidth: React.PropTypes.number,
-  change: React.PropTypes.shape(ChangeShape).isRequired,
-  currencies: React.PropTypes.arrayOf(React.PropTypes.shape({
-    id: React.PropTypes.string.isRequired,
-    exchange: React.PropTypes.string.isRequired,
-    name: React.PropTypes.string.isRequired,
+  canvasHeight: PropTypes.number,
+  canvasWidth: PropTypes.number,
+  change: PropTypes.shape(ChangeShape).isRequired,
+  currencies: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    exchange: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
   })).isRequired,
-  initialBook: React.PropTypes.object.isRequired,
-  initialTimestamp: React.PropTypes.number.isRequired,
-  maxPrice: React.PropTypes.string.isRequired,
-  minPrice: React.PropTypes.string.isRequired,
-  onCurrencyChange: React.PropTypes.func.isRequired,
-  pricePrecision: React.PropTypes.number.isRequired,
+  initialBook: PropTypes.object.isRequired,
+  initialTimestamp: PropTypes.number.isRequired,
+  maxPrice: PropTypes.string.isRequired,
+  minPrice: PropTypes.string.isRequired,
+  onCurrencyChange: PropTypes.func.isRequired,
+  pricePrecision: PropTypes.number.isRequired,
 };
 
 Orderbook.defaultProps = {
