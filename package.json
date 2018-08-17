@@ -9,11 +9,10 @@
     "install-node": "6.9.2"
   },
   "dependencies": {
-    "babel-runtime": "^6.9.2",
     "chroma-js": "1.2.2",
     "dva": "^1.2.1",
     "dva-loading": "^0.2.0",
-    "lodash": "4.17.4",
+    "lodash": "4.17.5",
     "material-ui": "0.17.1",
     "paper": "0.10.3",
     "react": "^15.4.0",
@@ -21,6 +20,7 @@
     "react-tap-event-plugin": "*"
   },
   "devDependencies": {
+    "babel-runtime": "^6.9.2",
     "babel-cli": "*",
     "babel-core": "*",
     "babel-eslint": "^7.1.1",
