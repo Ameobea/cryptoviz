@@ -3,21 +3,27 @@
 
 const _ = require('lodash');
 
-import { gpp, getPixelX, getPixelY, getTimestampFromPixel, getPriceFromPixel, getBandIndex } from '../calc';
+import {
+  gpp,
+  getPixelX,
+  getPixelY,
+  getTimestampFromPixel,
+  getPriceFromPixel,
+  getBandIndex,
+} from '../calc';
 import { histRender } from './histRender';
 
 /**
  * Renders in the price and time scales for the visualization
  */
-function renderScales(vizState) {
+export const renderScales = vizState => {
   const { Color, Path, Point, PointText } = vizState.paperscope;
-  // remove any pre-existnig price lines first
-  const oldItems = _.filter(vizState.paperscope.project.activeLayer.children, item => {
-    return _.includes(item.name, 'priceLine_') || _.includes(item.name, 'levelText_');
-  });
-  _.each(oldItems, item => {
-    item.remove();
-  });
+  // remove any pre-existing price lines first
+  vizState.paperscope.project.activeLayer.children
+    .filter(
+      item => item.name && (item.name.includes('priceLine_') || item.name.includes('levelText_'))
+    )
+    .forEach(item => item.remove());
 
   // draw a line on the left side of the visualization to serve as the price axis
   const axisLine = new Path({
@@ -33,11 +39,11 @@ function renderScales(vizState) {
   const levelSpacing = Math.ceil(50 / bandPixelHeight);
   const totalLevels = Math.floor(vizState.canvasHeight / levelSpacing);
   let curLevel = vizState.priceGranularity;
-  while(curLevel > 0) {
+  while (curLevel > 0) {
     // determine the raw price of where we'd like to place the band
-    const rawPrice = +vizState.minPrice + (bandPriceSpan * curLevel);
+    const rawPrice = +vizState.minPrice + bandPriceSpan * curLevel;
     // find the pixel value of the bottom of this price band
-    const bandBottomPixel = vizState.canvasHeight - (bandPixelHeight * curLevel);
+    const bandBottomPixel = vizState.canvasHeight - bandPixelHeight * curLevel;
     // write the price level at that point
     const levelText = new PointText(new Point(0, bandBottomPixel));
     levelText.fontSize = '10px';
@@ -54,34 +60,33 @@ function renderScales(vizState) {
 
     curLevel -= levelSpacing;
   }
-}
+};
 
 /**
  * Adds a new trade to the visualization, connecting the line between it and previous trades (if they exist).
  */
-function renderNewTrade() {
+export const renderNewTrade = () => {
   // TODO
-}
+};
 
 /**
  * Displays a transitive notification of an order placement, modification, or removal on the visualization.  The intensity of the
  * displayed notification is scaled according to the size of the modification in comparison to the rest of the visible book.
  */
-function renderOrderNotification() {
+export const renderOrderNotification = () => {
   // TODO
-}
+};
 
 /**
  * Returns an array of all rendered path elements of the paperscope that are trade markers.
  */
-function getTradeNotifications(paperscope) {
-  return _.filter(paperscope.project.activeLayer.children, item => _.includes(item.name, 'trade-'));
-}
+export const getTradeNotifications = paperscope =>
+  paperscope.project.activeLayer.children.filter(item => item.name && item.name.includes('trade-'));
 
 /**
  * Sets up some initial state for the paper canvas.
  */
-function initPaperCanvas(vizState) {
+export const initPaperCanvas = vizState => {
   const { Color, Path, Point, PointText } = vizState.paperscope;
 
   vizState.paperscope.activate();
@@ -132,7 +137,7 @@ function initPaperCanvas(vizState) {
 
   // set up mouse movement listener to move crosshair and update data
   vizState.paperscope.project.view.onMouseMove = e => {
-    const {x, y} = e.point;
+    const { x, y } = e.point;
     vizState.hoveredX = x;
     vizState.hoveredY = y;
     updateTextInfo(vizState);
@@ -142,14 +147,14 @@ function initPaperCanvas(vizState) {
   vizState.paperscope.project.view.onMouseDown = e => {
     vizState.firstZoomRectangleCorner = e.point;
     vizState.zoomRectangle = new Path.Rectangle(e.point, e.point);
-    vizState.zoomRectangle.fillColor = new Color(200, 200, 200, .4);
+    vizState.zoomRectangle.fillColor = new Color(200, 200, 200, 0.4);
   };
 
   // set up the zoom rectangle handler
   vizState.paperscope.project.view.onMouseDrag = e => {
     vizState.zoomRectangle.remove();
     vizState.zoomRectangle = new Path.Rectangle(vizState.firstZoomRectangleCorner, e.point);
-    vizState.zoomRectangle.fillColor = new Color(200, 200, 200, .4);
+    vizState.zoomRectangle.fillColor = new Color(200, 200, 200, 0.4);
   };
 
   // zoom into the selected region when the mouse is released
@@ -159,29 +164,29 @@ function initPaperCanvas(vizState) {
 
   // draw the axis and price scales
   renderScales(vizState);
-}
+};
 
 /**
  * Zooms into the area selected by the user
  */
-function zoomToRectangle(vizState, finalPoint) {
-  if(!vizState.zoomRectangle)
+export const zoomToRectangle = (vizState, finalPoint) => {
+  if (!vizState.zoomRectangle) {
     return;
+  }
   vizState.zoomRectangle.remove();
   vizState.zoomRectangle = null;
 
   // ignore extremely tiny/accidental zooms
   const xDiff = vizState.firstZoomRectangleCorner.x - finalPoint.x;
   const yDiff = vizState.firstZoomRectangleCorner.y - finalPoint.y;
-  if(Math.abs(xDiff) <= 3 || Math.abs(yDiff) <= 3)
-    return;
+  if (Math.abs(xDiff) <= 3 || Math.abs(yDiff) <= 3) return;
 
   const startPrice = getPriceFromPixel(vizState, vizState.firstZoomRectangleCorner.y);
   const startTime = getTimestampFromPixel(vizState, vizState.firstZoomRectangleCorner.x);
   const endPrice = getPriceFromPixel(vizState, finalPoint.y);
   const endTime = getTimestampFromPixel(vizState, finalPoint.x);
 
-  if(startPrice > endPrice) {
+  if (startPrice > endPrice) {
     vizState.minPrice = endPrice.toFixed(vizState.pricePrecision);
     vizState.maxPrice = startPrice.toFixed(vizState.pricePrecision);
   } else {
@@ -189,7 +194,7 @@ function zoomToRectangle(vizState, finalPoint) {
     vizState.minPrice = startPrice.toFixed(vizState.pricePrecision);
   }
 
-  if(startTime > endTime) {
+  if (startTime > endTime) {
     vizState.minTimestamp = endTime;
     vizState.maxTimestamp = startTime;
   } else {
@@ -198,21 +203,19 @@ function zoomToRectangle(vizState, finalPoint) {
   }
 
   vizState.manualZoom = true;
-  if(!vizState.resetButtom)
-    drawResetZoomButton(vizState);
+  if (!vizState.resetButtom) drawResetZoomButton(vizState);
   histRender(vizState, vizState.nativeCanvas, true);
-}
+};
 
 /**
  * Creates a `Reset Zoom` button at the top-left of the visualization that can be used to reset the zoom back to default
  */
-function drawResetZoomButton(vizState) {
-  if(vizState.resetButton)
-    return;
+export const drawResetZoomButton = vizState => {
+  if (vizState.resetButton) return;
   const { Color, Path, Point, PointText } = vizState.paperscope;
 
   vizState.resetButton = new Path.Rectangle(new Point(70, 20), new Point(147, 40));
-  vizState.resetButton.fillColor = new Color(200, 200, 200, .22);
+  vizState.resetButton.fillColor = new Color(200, 200, 200, 0.22);
   vizState.resetButton.onMouseDown = e => {
     resetZoom(vizState);
   };
@@ -225,13 +228,13 @@ function drawResetZoomButton(vizState) {
   vizState.resetText.name = 'priceRangeText';
   vizState.resetText.fontSize = '12px';
   vizState.resetText.content = 'Reset Zoom';
-}
+};
 
 /**
  * Re-calculates optimal zoom levels and re-renders them into the visualization
  */
-function resetZoom(vizState) {
-  if(vizState.resetButton) {
+export const resetZoom = vizState => {
+  if (vizState.resetButton) {
     vizState.resetButton.remove();
     vizState.resetText.remove();
   }
@@ -239,9 +242,9 @@ function resetZoom(vizState) {
   vizState.resetText = null;
 
   vizState.minTimestamp = _.first(vizState.priceLevelUpdates).timestamp;
-  vizState.maxTimestamp = _.last(vizState.priceLevelUpdates).timestamp + (10 * 1000);
-  if(vizState.trades.length > 0) {
-    vizState.minPrice = _.minBy(vizState.trades, trade => +trade.price).price * .995;
+  vizState.maxTimestamp = _.last(vizState.priceLevelUpdates).timestamp + 10 * 1000;
+  if (vizState.trades.length > 0) {
+    vizState.minPrice = _.minBy(vizState.trades, trade => +trade.price).price * 0.995;
     vizState.maxPrice = _.maxBy(vizState.trades, trade => +trade.price).price * 1.005;
   } else {
     vizState.minPrice = vizState.initialMinPrice;
@@ -250,81 +253,85 @@ function resetZoom(vizState) {
   vizState.manualZoom = false;
 
   histRender(vizState, vizState.nativeCanvas, true);
-}
+};
 
 /**
  * Updates the displayed price, timestamp, and volume information in the top-right corner of the visualization
  */
-function updateTextInfo(vizState) {
+export const updateTextInfo = vizState => {
   const x = vizState.hoveredX;
   const y = vizState.hoveredY;
   const timestamp = getTimestampFromPixel(vizState, x);
   const price = getPriceFromPixel(vizState, y);
 
   // update crosshair data
-  const verticalSegments = vizState.paperscope.project.activeLayer.children['verticalCrosshair'].segments;
+  const verticalSegments =
+    vizState.paperscope.project.activeLayer.children['verticalCrosshair'].segments;
   verticalSegments[0].point.x = x;
   verticalSegments[1].point.x = x;
 
-  const horizontalSegments = vizState.paperscope.project.activeLayer.children['horizontalCrosshair'].segments;
+  const horizontalSegments =
+    vizState.paperscope.project.activeLayer.children['horizontalCrosshair'].segments;
   horizontalSegments[0].point.y = y;
   horizontalSegments[1].point.y = y;
 
   // update text fields
-  vizState.paperscope.project.activeLayer.children['timestampText'].content = new Date(timestamp).toString().split(' ')[4];
+  vizState.paperscope.project.activeLayer.children['timestampText'].content = new Date(timestamp)
+    .toString()
+    .split(' ')[4];
   const bandPriceSpan = (+vizState.maxPrice - +vizState.minPrice) / vizState.priceGranularity;
   const hoveredBandIndex = getBandIndex(vizState, price);
-  const bandBottomPrice = +vizState.minPrice + (bandPriceSpan * hoveredBandIndex);
+  const bandBottomPrice = +vizState.minPrice + bandPriceSpan * hoveredBandIndex;
   const bandTopPrice = bandBottomPrice + bandPriceSpan;
-  vizState.paperscope.project.activeLayer.children['priceRangeText'].content = `${bandBottomPrice.toFixed(8)} - ${bandTopPrice.toFixed(8)}`;
-  vizState.paperscope.project.activeLayer.children['curVolumeText'].content = vizState.activeBands[hoveredBandIndex].volume;
-}
+  vizState.paperscope.project.activeLayer.children[
+    'priceRangeText'
+  ].content = `${bandBottomPrice.toFixed(8)} - ${bandTopPrice.toFixed(8)}`;
+  vizState.paperscope.project.activeLayer.children['curVolumeText'].content =
+    vizState.activeBands[hoveredBandIndex].volume;
+};
 
 /**
  * Draws a marker on the visualizaiton indicating that a trade took place, its bid/ask status, and its size.
  * Also updates the trade lines.
  */
-function renderTradeNotification(vizState, fixedPrice, amountTraded, timestamp, isBid) {
+export const renderTradeNotification = (vizState, fixedPrice, amountTraded, timestamp, isBid) => {
   vizState.paperscope.activate();
   // if the size of this trade is a new high, we need to re-scale all the old markers
-  if(+amountTraded > +vizState.maxRenderedTrade) {
+  if (+amountTraded > +vizState.maxRenderedTrade) {
     const sizeDiff = vizState.maxRenderedTrade / amountTraded;
     const tradeNotifications = getTradeNotifications(vizState.paperscope);
-    _.each(tradeNotifications, item => {
-      item.scale(sizeDiff);
-    });
+    tradeNotifications.forEach(item => item.scale(sizeDiff));
 
     vizState.maxRenderedTrade = amountTraded;
   }
 
-  const {x, y} = gpp(vizState, timestamp, fixedPrice);
-  let priceLine;
-  if(isBid) {
-    priceLine = vizState.paperscope.project.activeLayer.children['bidTradeLine'];
-  } else {
-    priceLine = vizState.paperscope.project.activeLayer.children['askTradeLine'];
-  }
+  const { x, y } = gpp(vizState, timestamp, fixedPrice);
+  const priceLine =
+    vizState.paperscope.project.activeLayer.children[isBid ? 'bidTradeLine' : 'askTradeLine'];
 
   // draw an additional point to keep the price line squared if this isn't the first point
-  if(priceLine.data.pointMeta.length !== 0) {
+  if (priceLine.data.pointMeta.length !== 0) {
     const lastPrice = _.last(priceLine.data.pointMeta).price;
     const point = new vizState.paperscope.Point(x, getPixelY(vizState, lastPrice));
-    priceLine.data.pointMeta.push({timestamp: timestamp, price: lastPrice});
+    priceLine.data.pointMeta.push({ timestamp, price: lastPrice });
     priceLine.add(point);
   }
 
   // add the new trade to its corresponding line
   const point = new vizState.paperscope.Point(x, y);
   priceLine.add(point);
-  priceLine.data.pointMeta.push({timestamp: timestamp, price: fixedPrice});
+  priceLine.data.pointMeta.push({ timestamp, price: fixedPrice });
 
   const radius = (amountTraded / vizState.maxRenderedTrade) * vizState.maxTradeMarketRadius;
   // don't bother drawing it if its diameter is less than a pixel
-  if(radius < .5) {
+  if (radius < 0.5) {
     return;
   }
 
-  const notification = new vizState.paperscope.Path.Circle(new vizState.paperscope.Point(x, y), radius);
+  const notification = new vizState.paperscope.Path.Circle(
+    new vizState.paperscope.Point(x, y),
+    radius
+  );
   notification.name = `trade-${timestamp}_${fixedPrice}`;
   notification.fillColor = isBid ? 'blue' : 'red';
   // print out information about the trade when hovered
@@ -337,34 +344,35 @@ function renderTradeNotification(vizState, fixedPrice, amountTraded, timestamp, 
   };
 
   // reset the status of the point line extension
-  if(isBid) {
+  if (isBid) {
     vizState.bidTradeLineExtended = false;
   } else {
     vizState.askTradeLineExtended = false;
   }
-}
+};
 
 /**
  * Displays an info box containing data about the currently hovered trade notification.
  */
-function renderTradeHover(vizState, {x, y}, area, name) {
+export const renderTradeHover = (vizState, { x, y }, area, name) => {
   const { Point, PointText } = vizState.paperscope;
   // determine the start location of the notification
   let displayX, displayY;
-  if(x > 160) {
+  if (x > 160) {
     displayX = x - 50;
   } else {
     displayX = x + 25;
   }
 
-  if(y > 50) {
+  if (y > 50) {
     displayY = y - 25;
   } else {
     displayY = y + 25;
   }
 
   const volumeText = new PointText(new Point(displayX, displayY));
-  const volume = (Math.sqrt(area / Math.PI) / vizState.maxTradeMarketRadius) * vizState.maxRenderedTrade;
+  const volume =
+    (Math.sqrt(area / Math.PI) / vizState.maxTradeMarketRadius) * vizState.maxRenderedTrade;
   volumeText.content = '~ ' + volume.toFixed(vizState.pricePrecision);
   volumeText.fontSize = '11px';
   volumeText.fillColor = vizState.textColor;
@@ -377,97 +385,99 @@ function renderTradeHover(vizState, {x, y}, area, name) {
   timeText.fontSize = '11px';
   timeText.fillColor = vizState.textColor;
   timeText.name = 'timeText';
-}
+};
 
 /**
  * Removes the displayed information about the previously hovered trade notification.
  */
-function hideTradeHover(vizState) {
+export const hideTradeHover = vizState => {
   const item = vizState.paperscope.project.activeLayer.children['volumeText'];
-  if(item) {
+  if (item) {
     vizState.paperscope.project.activeLayer.children['timeText'].remove();
     item.remove();
   }
-}
+};
 
 /**
  * Triggered every price update.  In order to keep the trade lines from crisscrossing, extend them out every price update.
  * If an extension point has already been drawn, modifies its position rather than drawing another one to keep things clean.
  */
-function extendTradeLines(vizState, timestamp) {
+export const extendTradeLines = (vizState, timestamp) => {
   const bidLine = vizState.paperscope.project.activeLayer.children['bidTradeLine'];
   const askLine = vizState.paperscope.project.activeLayer.children['askTradeLine'];
 
-  if(vizState.bidTradeLineExtended) {
+  if (vizState.bidTradeLineExtended) {
     // already have a reference point, so find it for each of the lines and alter its position
     bidLine.segments[bidLine.segments.length - 1].point.x = getPixelX(vizState, timestamp);
-    bidLine.segments[bidLine.segments.length - 1].point.y = getPixelY(vizState, _.last(bidLine.data.pointMeta).price);
-  } else if(bidLine.data.pointMeta.length > 0) {
+    bidLine.segments[bidLine.segments.length - 1].point.y = getPixelY(
+      vizState,
+      _.last(bidLine.data.pointMeta).price
+    );
+  } else if (bidLine.data.pointMeta.length > 0) {
     // we have no reference point, so add a new one for each of the lines using the price of the last trade point
     const lastPrice = _.last(bidLine.data.pointMeta).price;
-    const {x, y} = gpp(vizState, timestamp, lastPrice);
-    bidLine.data.pointMeta.push({timestamp: timestamp, price: lastPrice});
+    const { x, y } = gpp(vizState, timestamp, lastPrice);
+    bidLine.data.pointMeta.push({ timestamp: timestamp, price: lastPrice });
     bidLine.add(new vizState.paperscope.Point(x, y));
 
     // make sure to remember that we added this reference point for next time
     vizState.bidTradeLineExtended = true;
   }
 
-  if(vizState.askTradeLineExtended) {
+  if (vizState.askTradeLineExtended) {
     askLine.segments[askLine.segments.length - 1].point.x = getPixelX(vizState, timestamp);
-    askLine.segments[askLine.segments.length - 1].point.y = getPixelY(vizState, _.last(askLine.data.pointMeta).price);
-  } else if(askLine.data.pointMeta.length > 0) {
+    askLine.segments[askLine.segments.length - 1].point.y = getPixelY(
+      vizState,
+      _.last(askLine.data.pointMeta).price
+    );
+  } else if (askLine.data.pointMeta.length > 0) {
     const lastPrice = _.last(askLine.data.pointMeta).price;
-    const {x, y} = gpp(vizState, timestamp, lastPrice);
-    askLine.data.pointMeta.push({timestamp: timestamp, price: lastPrice});
+    const { x, y } = gpp(vizState, timestamp, lastPrice);
+    askLine.data.pointMeta.push({ timestamp: timestamp, price: lastPrice });
     askLine.add(new vizState.paperscope.Point(x, y));
 
     vizState.askTradeLineExtended = true;
   }
-}
+};
 
 /**
  * Moves all of the currently drawn trade markers to their proper locations based on the current `vizState`.
  */
-function reRenderTrades(vizState) {
+export const reRenderTrades = vizState => {
   vizState.paperscope.activate();
 
   // hide any previously visible trade notification since it's likely no longer hovered
   hideTradeHover(vizState);
 
   // move all of the circular trade markers
-  _.each(getTradeNotifications(vizState.paperscope), item => {
+  getTradeNotifications(vizState.paperscope).forEach(item => {
     // get the timestamp and price out of the item's name
     const split = item.name.split('-')[1].split('_');
-    const {x, y} = gpp(vizState, +split[0], split[1]);
+    const { x, y } = gpp(vizState, +split[0], split[1]);
     item.position = new vizState.paperscope.Point(x, y);
   });
 
   // move all of the points of the price line as well
   const bidLine = vizState.paperscope.project.activeLayer.children['bidTradeLine'];
   const askLine = vizState.paperscope.project.activeLayer.children['askTradeLine'];
-  _.each(bidLine.segments, (segment, i) => {
-    const {timestamp, price} = bidLine.data.pointMeta[i];
-    const {x, y} = gpp(vizState, timestamp, price);
+
+  bidLine.segments.forEach((segment, i) => {
+    const { timestamp, price } = bidLine.data.pointMeta[i];
+    const { x, y } = gpp(vizState, timestamp, price);
     segment.point.x = x;
     segment.point.y = y;
   });
-  _.each(askLine.segments, (segment, i) => {
-    const {timestamp, price} = askLine.data.pointMeta[i];
-    const {x, y} = gpp(vizState, timestamp, price);
+  askLine.segments.forEach((segment, i) => {
+    const { timestamp, price } = askLine.data.pointMeta[i];
+    const { x, y } = gpp(vizState, timestamp, price);
     segment.point.x = x;
     segment.point.y = y;
   });
-}
+};
 
 /**
  * Updates the new top-of-book bid or ask price // TODO
  */
-function renderNewBestPrice(vizState) {
+export const renderNewBestPrice = vizState => {
   // TODO?
-}
-
-export {
-  renderScales, renderNewTrade, renderOrderNotification, renderTradeNotification, renderNewBestPrice, reRenderTrades,
-  initPaperCanvas, extendTradeLines, updateTextInfo, resetZoom
 };

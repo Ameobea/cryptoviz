@@ -1,10 +1,12 @@
-//! A set of React components used to render interactive orderbook visualizations for limit orderbook data
+/**
+ * A set of React components used to render interactive orderbook visualizations for limit orderbook data
+ */
 
 import React from 'react';
+import PropTypes from 'prop-types';
 
-const _ = require('lodash');
+import _ from 'lodash';
 
-import DepthChart from './DepthChart/DepthChart';
 import Orderbook from './Orderbook/Orderbook';
 
 /**
@@ -55,22 +57,28 @@ class OrderbookVisualizer extends React.Component {
   }
 
   componentWillReceiveProps(nextProps) {
-    if(!_.isEqual(nextProps.initialBook, this.props.initialBook)) {
+    if (!_.isEqual(nextProps.initialBook, this.props.initialBook)) {
       // currency has changed; reset all internal state and re-initialize component
-      this.setState({initialBook: nextProps.initialBook});
+      this.setState({ initialBook: nextProps.initialBook });
     }
   }
 
-  handleBookModification(change: {modification: {price: number, newAmount: number, isBid: boolean}, timestamp: number}) {
-    this.setState({latestChange: change});
+  handleBookModification(change: {
+    modification: { price: number, newAmount: number, isBid: boolean },
+    timestamp: number,
+  }) {
+    this.setState({ latestChange: change });
   }
 
-  handleBookRemoval(change: {removal: {price: number, isBid: boolean}, timestamp: number}) {
-    this.setState({latestChange: change});
+  handleBookRemoval(change: { removal: { price: number, isBid: boolean }, timestamp: number }) {
+    this.setState({ latestChange: change });
   }
 
-  handleNewTrade(change: { newTrade: {price: number, amountRemaining: number, wasBidFilled: boolean}, timestamp: number}) {
-    this.setState({latestChange: change});
+  handleNewTrade(change: {
+    newTrade: { price: number, amountRemaining: number, wasBidFilled: boolean },
+    timestamp: number,
+  }) {
+    this.setState({ latestChange: change });
   }
 
   handleCurrencyChange(newCurrency) {
@@ -79,7 +87,7 @@ class OrderbookVisualizer extends React.Component {
 
   render() {
     return (
-      <div className='book-viz-container'>
+      <div className="book-viz-container">
         <Orderbook
           canvasHeight={this.props.orderbookCanvasHeight}
           canvasWidth={this.props.orderbookCanvasWidth}
@@ -98,32 +106,34 @@ class OrderbookVisualizer extends React.Component {
 }
 
 OrderbookVisualizer.propTypes = {
-  bookModificationCallbackExecutor: React.PropTypes.func.isRequired,
-  bookRemovalCallbackExecutor: React.PropTypes.func.isRequired,
-  depthChartCanvasHeight: React.PropTypes.number,
-  depthChartCanvasWidth: React.PropTypes.number,
-  initialBook: React.PropTypes.object.isRequired,
-  initialTimestamp: React.PropTypes.number.isRequired,
-  maxPrice: React.PropTypes.string.isRequired,
-  minPrice: React.PropTypes.string.isRequired,
-  newTradeCallbackExecutor: React.PropTypes.func.isRequired,
-  onCurrencyChange: React.PropTypes.func.isRequired,
-  orderbookCanvasHeight: React.PropTypes.number,
-  orderbookCanvasWidth: React.PropTypes.number,
-  pricePrecision: React.PropTypes.number.isRequired
+  bookModificationCallbackExecutor: PropTypes.func.isRequired,
+  bookRemovalCallbackExecutor: PropTypes.func.isRequired,
+  currencies: PropTypes.arrayOf(PropTypes.string).isRequired,
+  initialBook: PropTypes.object.isRequired,
+  initialTimestamp: PropTypes.number.isRequired,
+  maxPrice: PropTypes.string.isRequired,
+  minPrice: PropTypes.string.isRequired,
+  newTradeCallbackExecutor: PropTypes.func.isRequired,
+  onCurrencyChange: PropTypes.func.isRequired,
+  orderbookCanvasHeight: PropTypes.number,
+  orderbookCanvasWidth: PropTypes.number,
+  pricePrecision: PropTypes.number.isRequired,
 };
 
-var body = document.body,
-    html = document.documentElement;
+const body = document.body;
+const html = document.documentElement;
 
-var height = Math.max(body.scrollHeight, body.offsetHeight,
-    html.clientHeight, html.scrollHeight, html.offsetHeight);
+const height = Math.max(
+  body.scrollHeight,
+  body.offsetHeight,
+  html.clientHeight,
+  html.scrollHeight,
+  html.offsetHeight
+);
 
 OrderbookVisualizer.defaultProps = {
-  orderbookCanvasHeight: .89 * height,
+  orderbookCanvasHeight: 0.86 * height,
   orderbookCanvasWidth: document.getElementsByTagName('body')[0].offsetWidth,
-  depthChartCanvasHeight: 600,
-  depthChartCanvasWidth: 900,
 };
 
 export default OrderbookVisualizer;
